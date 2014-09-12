@@ -1,31 +1,7 @@
-CLIENT_HELLO =                                   1
-CLIENT_HELLO_RESP =                              2
-# Sent by the client when its leaving.
-CLIENT_DISCONNECT =                              3
-# Sent by the server when it is dropping the connection deliberately.
-CLIENT_EJECT =                                   4
-CLIENT_HEARTBEAT =                               5
+# This file defines messages used by the Astron "Internal Protocol"
 
-CLIENT_OBJECT_SET_FIELD =                        120
-CLIENT_OBJECT_SET_FIELDS =                       121
-CLIENT_OBJECT_LEAVING =                          132
-CLIENT_OBJECT_LEAVING_OWNER =                    161
-
-CLIENT_ENTER_OBJECT_REQUIRED =                   142
-CLIENT_ENTER_OBJECT_REQUIRED_OTHER =             143
-CLIENT_ENTER_OBJECT_REQUIRED_OWNER =             172
-CLIENT_ENTER_OBJECT_REQUIRED_OTHER_OWNER =       173
-CLIENT_DONE_INTEREST_RESP =                      204
-
-CLIENT_ADD_INTEREST =                            200
-CLIENT_ADD_INTEREST_MULTIPLE =                   201
-CLIENT_REMOVE_INTEREST =                         203
-CLIENT_OBJECT_LOCATION =                         140
-
-
-# These are sent internally inside the Astron cluster.
-
-# Message Director control messages = 
+# MessageDirector / Control Messages
+# https://astron.github.io/astron/en/master/19-messagedirector.html
 CONTROL_CHANNEL =                                   1
 CONTROL_ADD_CHANNEL =                               9000
 CONTROL_REMOVE_CHANNEL =                            9001
@@ -34,9 +10,15 @@ CONTROL_REMOVE_RANGE =                              9003
 CONTROL_ADD_POST_REMOVE =                           9010
 CONTROL_CLEAR_POST_REMOVES =                        9011
 
-# State Server control messages = 
+
+# StateServer Messages
+# https://astron.github.io/astron/en/master/12-stateserver.html
+
+# StateServer Control
 STATESERVER_CREATE_OBJECT_WITH_REQUIRED =           2000
 STATESERVER_CREATE_OBJECT_WITH_REQUIRED_OTHER =     2001
+
+# Distributed Object Control
 STATESERVER_DELETE_AI_OBJECTS =                     2009
 STATESERVER_OBJECT_GET_FIELD =                      2010
 STATESERVER_OBJECT_GET_FIELD_RESP =                 2011
@@ -49,6 +31,8 @@ STATESERVER_OBJECT_SET_FIELDS =                     2021
 STATESERVER_OBJECT_DELETE_FIELD_RAM =               2030
 STATESERVER_OBJECT_DELETE_FIELDS_RAM =              2031
 STATESERVER_OBJECT_DELETE_RAM =                     2032
+
+# Distributed Object Visibility
 STATESERVER_OBJECT_SET_LOCATION =                           2040
 STATESERVER_OBJECT_CHANGING_LOCATION =                      2041
 STATESERVER_OBJECT_ENTER_LOCATION_WITH_REQUIRED =           2042
@@ -67,6 +51,8 @@ STATESERVER_OBJECT_ENTER_OWNER_WITH_REQUIRED =              2062
 STATESERVER_OBJECT_ENTER_OWNER_WITH_REQUIRED_OTHER =        2063
 STATESERVER_OBJECT_GET_OWNER =                              2064
 STATESERVER_OBJECT_GET_OWNER_RESP =                         2065
+
+# Parent Object Queries
 STATESERVER_OBJECT_GET_ZONE_OBJECTS =               2100
 STATESERVER_OBJECT_GET_ZONES_OBJECTS =              2102
 STATESERVER_OBJECT_GET_CHILDREN =                   2104
@@ -79,7 +65,8 @@ STATESERVER_OBJECT_GET_CHILD_COUNT_RESP =           2115
 STATESERVER_OBJECT_DELETE_ZONE =                    2120
 STATESERVER_OBJECT_DELETE_ZONES =                   2122
 STATESERVER_OBJECT_DELETE_CHILDREN =                2124
-# DBSS-backed-object messages = 
+
+# DBSS-Backed Object Control
 DBSS_OBJECT_ACTIVATE_WITH_DEFAULTS =         2200
 DBSS_OBJECT_ACTIVATE_WITH_DEFAULTS_OTHER =   2201
 DBSS_OBJECT_GET_ACTIVATED =                  2207
@@ -88,7 +75,9 @@ DBSS_OBJECT_DELETE_FIELD_DISK =              2230
 DBSS_OBJECT_DELETE_FIELDS_DISK =             2231
 DBSS_OBJECT_DELETE_DISK =                    2232
 
-# Database Server control messages = 
+
+# Database Server Messages
+# https://astron.github.io/astron/en/master/13-dbserver.html
 DBSERVER_CREATE_OBJECT =                        3000
 DBSERVER_CREATE_OBJECT_RESP =                   3001
 DBSERVER_OBJECT_GET_FIELD =                     3010
@@ -109,7 +98,8 @@ DBSERVER_OBJECT_DELETE_FIELD =                  3030
 DBSERVER_OBJECT_DELETE_FIELDS =                 3031
 DBSERVER_OBJECT_DELETE =                        3032
 
-# Client Agent control messages = 
+# ClientAgent Messages
+# https://astron.github.io/astron/en/master/11-clientagent.html
 CLIENTAGENT_SET_STATE =                         1000
 CLIENTAGENT_SET_CLIENT_ID =                     1001
 CLIENTAGENT_SEND_DATAGRAM =                     1002

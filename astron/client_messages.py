@@ -1,0 +1,24 @@
+# This file defines messages used by the Astron "Client Protocol"
+# See https://astron.github.io/astron/en/master/10-client.html.
+
+CLIENT_HELLO =      1
+CLIENT_HELLO_RESP = 2
+CLIENT_DISCONNECT = 3 # Sent by the client when its leaving.
+CLIENT_EJECT =      4 # Sent by the server when it is booting the client.
+CLIENT_HEARTBEAT =  5
+
+CLIENT_OBJECT_SET_FIELD =     120
+CLIENT_OBJECT_SET_FIELDS =    121
+CLIENT_OBJECT_LOCATION =      140
+CLIENT_OBJECT_LEAVING =       132
+CLIENT_OBJECT_LEAVING_OWNER = 161
+
+CLIENT_ENTER_OBJECT_REQUIRED =             142
+CLIENT_ENTER_OBJECT_REQUIRED_OTHER =       143
+CLIENT_ENTER_OBJECT_REQUIRED_OWNER =       172
+CLIENT_ENTER_OBJECT_REQUIRED_OTHER_OWNER = 173
+
+CLIENT_ADD_INTEREST =          200
+CLIENT_ADD_INTEREST_MULTIPLE = 201
+CLIENT_REMOVE_INTEREST =       203
+CLIENT_DONE_INTEREST_RESP =    204

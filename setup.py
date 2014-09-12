@@ -13,5 +13,5 @@ setup(name = 'astron', version = '0.0', license = 'BSD',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: BSD License',
         'Operating System :: OS Independent',
-        'Topic :: Software Development :: Libraries :: Python Modules'
+        'Topic :: Software Development :: Libraries :: Python Modules',
       ])
