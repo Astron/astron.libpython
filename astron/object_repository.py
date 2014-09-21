@@ -1,5 +1,6 @@
+import socket
 from bamboo import dcfile, module, traits
-from bamboo.wire import DatagramIterator
+from bamboo.wire import Datagram, DatagramIterator
 from connection import Connection
 import client_messages as clientmsg
 import internal_messages as servermsg
@@ -13,7 +14,7 @@ astron_keywords = ['clsend', 'ownsend',
                    'ram', 'required', 'db']
 default_host = "127.0.0.1"
 default_internal_port = 7199
-default_client_port = 6667
+default_client_port = 7198
 default_dcfilename = "astron.dc"
 
 
@@ -97,11 +98,11 @@ class ClientRepository(ObjectRepository):
     # Sending messages
 
     def send_CLIENT_HELLO(self):
-        dg = wire.Datagram()
+        dg = Datagram()
         dg.add_uint16(clientmsg.CLIENT_HELLO)
         dg.add_uint32(traits.legacy_hash(self.mod))
         dg.add_string(self.version_string)
-        self.send(dg)
+        self.send_datagram(dg)
 
     # Receive messages
 

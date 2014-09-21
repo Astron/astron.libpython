@@ -1,0 +1,11 @@
+
+general:
+    dc_files: ['simple_example.dc']
+
+messagedirector:
+    bind: 0.0.0.0:7199
+
+roles:
+    - type: clientagent
+      version: 'SimpleExample v0.2'
+

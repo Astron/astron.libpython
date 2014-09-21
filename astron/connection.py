@@ -23,7 +23,7 @@ class Connection:
 
     def send_datagram(self, datagram):
         msg = struct.pack('<H', len(datagram)) + datagram.data()
-        self.conn.send(msg)
+        self.socket.send(msg)
 
     def recv_datagram(self):
         """Wait for the next datagram and return it."""
