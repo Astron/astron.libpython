@@ -1,3 +1,4 @@
+import errno
 import struct
 import socket
 from bamboo.wire import Datagram
@@ -33,6 +34,22 @@ class Connection:
         return dg
 
     def poll_datagram(self):
+        self.socket.setblocking(0)
+        try:
+            length = struct.unpack('<H', self._read(2))
+        except socket.error as err:
+            if err.errno is errno.EWOULDBLOCK:
+                return None
+            else:
+                raise err
+
+        self.socket.setblocking(1)
+        data = self._read(length)
+        dg = Datagram()
+        dg.add_data(data)
+        return dg
+
+
         "Receive a datagram if immediately available, otherwise return None."
         raise NotImplementedError
 
