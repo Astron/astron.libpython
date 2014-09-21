@@ -49,10 +49,6 @@ class Connection:
         dg.add_data(data)
         return dg
 
-
-        "Receive a datagram if immediately available, otherwise return None."
-        raise NotImplementedError
-
     def _read(self, length):
         result = ''
         while len(result) < length:
