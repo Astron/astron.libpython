@@ -63,7 +63,7 @@ class ObjectRepository(Connection):
         dgi = DatagramIterator(dg)
         msgtype = dgi.read_uint16()
         if msgtype in self.handlers.keys():
-            self.handlers[msg_type](dgi)
+            self.handlers[msgtype](dgi)
         else:
             print("Received unhandled message type " + str(msgtype))
 

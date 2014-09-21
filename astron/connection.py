@@ -27,7 +27,7 @@ class Connection:
 
     def recv_datagram(self):
         """Wait for the next datagram and return it."""
-        length = struct.unpack('<H', self._read(2))
+        length = struct.unpack('<H', self._read(2))[0]
         data = self._read(length)
         dg = Datagram()
         dg.add_data(data)
@@ -36,7 +36,7 @@ class Connection:
     def poll_datagram(self):
         self.socket.setblocking(0)
         try:
-            length = struct.unpack('<H', self._read(2))
+            length = struct.unpack('<H', self._read(2))[0]
         except socket.error as err:
             if err.errno is errno.EWOULDBLOCK:
                 return None

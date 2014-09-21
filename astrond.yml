@@ -8,4 +8,6 @@ messagedirector:
 roles:
     - type: clientagent
       version: 'SimpleExample v0.2'
-
+      channels:
+          min: 100100
+          max: 100999
