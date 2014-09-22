@@ -56,6 +56,7 @@ class ObjectRepository(Connection):
             dg = self.recv_datagram()
             while dg is not None:
                 self._handle_datagram(dg)
+                dg = self.recv_datagram()
         except socket.error:
             return
 
