@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-import os
-import sys
-import time
+
+from time import sleep
+
 from astron.object_repository import ClientRepository
 
 if __name__ == '__main__':
@@ -17,7 +17,11 @@ if __name__ == '__main__':
         print('Connection attempt failed.')
 
     repo.connect(connected, failed, ejected)
-    repo.poll_forever()
+
+    while True:
+        repo.poll_till_empty()
+        #print(repo.poll_datagram())
+        sleep(1)
 
 ## Lets do some random things
 #print mod.get_num_classes() # or GetNumClasses
