@@ -10,3 +10,7 @@ class DistributedObject:
     
     def delete(self):
         print("DO deleted: %d" % (self.do_id, ))
+
+    def send_update(self, field_name, value):
+        # FIXME: Find field type, write datagram, send
+        pass

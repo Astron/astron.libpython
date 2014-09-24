@@ -8,6 +8,8 @@ import client_messages as clientmsg
 import internal_messages as servermsg
 from distributed_object import DistributedObject
 import socket
+import importlib
+from pprint import pprint
 
 DATAGRAM_SIZE = 2
 DATAGRAM_ENCODING = '<H'
@@ -29,6 +31,24 @@ class ObjectRepository(Connection):
         for word in astron_keywords:
             self.mod.add_keyword(word)
         dcfile.parse_dcfile(self.mod, dcfilename)
+        self.dclass_id_to_cls = {}
+        self.dclass_name_to_cls = {}
+        for i_id in range(0, self.mod.num_imports()):
+            # Determine and import the module
+            dc_module = self.mod.get_import(i_id).module
+            for symbol in self.mod.get_import(i_id).symbols:
+                # Figure out the names of used classes
+                fragments = symbol.split('/')
+                base_class = fragments[0]
+                postfixes = fragments[1:] + ['']
+                for postfix in postfixes:
+                    #cls = importlib.import_module(dc_module, base_class + postfix)
+                    cls = 'the_class'
+                    self.dclass_id_to_cls[(i_id, postfix)] = cls
+                    self.dclass_name_to_cls[base_class + postfix] = cls
+        pprint(self.dclass_id_to_cls)
+        pprint(self.dclass_name_to_cls)
+
 
         self.handlers = {}
         
@@ -80,13 +100,13 @@ class ObjectRepository(Connection):
         else:
             print("Received unhandled message type " + str(msgtype))
 
-    def create_view(self, dgi, cls_postfix = ''):
+    def create_view_from_datagram(self, dgi, cls_postfix = ''):
         do_id = dgi.read_uint32()
         parent_id = dgi.read_uint32()
         zone_id = dgi.read_uint32()
         dclass_id = dgi.read_uint16()
         # Create the view object
-        cls_name = mod.get_class_by_id(dclass_id).get_name() + cls_postfix
+        cls_name = self.mod.get_class_by_id(dclass_id).get_name() + cls_postfix
         # FIXME: Get the actual class
         cls = DistributedObject
         dist_obj = cls(self, do_id, parent_id, zone_id)
@@ -94,7 +114,7 @@ class ObjectRepository(Connection):
         # FIXME: Read the field values from the dgi and apply them
         dist_obj.init()
 
-    def create_view_directly(self, cls, do_id, parent_id, zone_id):
+    def create_view_by_classname(self, cls_name, do_id, parent_id, zone_id):
         cls = DistributedObject
         dist_obj = cls(self, do_id, parent_id, zone_id)
         self.distributed_objects[do_id] = dist_obj
@@ -278,24 +298,13 @@ class ClientRepository(ObjectRepository):
         del self.distributed_objects[do_id]
     
     def handle_CLIENT_ENTER_OBJECT_REQUIRED(self, dgi):
-        self.create_view(dgi)
+        self.create_view_from_datagram(dgi)
     
     def handle_CLIENT_ENTER_OBJECT_REQUIRED_OTHER(self, dgi):
-        self.create_view(dgi)
+        self.create_view_from_datagram(dgi)
     
     def handle_CLIENT_ENTER_OBJECT_REQUIRED_OWNER(self, dgi):
-        self.create_view(dgi, cls_postfix = 'OV')
+        self.create_view_from_datagram(dgi, cls_postfix = 'OV')
     
     def handle_CLIENT_ENTER_OBJECT_REQUIRED_OTHER_OWNER(self, dgi):
-        self.create_view(dgi, cls_postfix = 'OV')
-
-
-
-
-
-
-
-
-
-
-
+        self.create_view_from_datagram(dgi, cls_postfix = 'OV')
