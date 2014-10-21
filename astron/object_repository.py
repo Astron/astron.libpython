@@ -107,6 +107,7 @@ class ObjectRepository(Connection):
     def handle_datagram(self, dg):
         dgi = DatagramIterator(dg)
         msgtype = dgi.read_uint16()
+        print("Handling %d" % (msgtype, ))
         if msgtype in self.handlers.keys():
             self.handlers[msgtype](dgi)
         else:
@@ -189,7 +190,7 @@ class ClientRepository(ObjectRepository):
     def send_CLIENT_DISCONNECT(self):
         dg = Datagram()
         dg.add_uint16(clientmsg.CLIENT_DISCONNECT)
-        self.send(dg)
+        self.send_datagram(dg)
         # FIXME: The connection should be closed right now.
         #   What about later reads of cached messages?
 
@@ -212,7 +213,7 @@ class ClientRepository(ObjectRepository):
         dg.add_uint16(interest_id)
         dg.add_uint32(parent_id)
         dg.add_uint32(zone_id)
-        self.send(dg)
+        self.send_datagram(dg)
         if callback != False:
             self.interest_callback_map[(interest_id, context_id)] = (callback, callback_args, callback_kwargs)
         return context_id
@@ -239,7 +240,7 @@ class ClientRepository(ObjectRepository):
         dg.add_uint16(zone_count)
         for zone_id in zone_ids:
             dg.add_uint32(zone_id)
-        self.send(dg)
+        self.send_datagram(dg)
         if callback != False:
             self.interest_callback_map[(interest_id, context_id)] = (callback, callback_args, callback_kwargs)
         return context_id
@@ -250,7 +251,7 @@ class ClientRepository(ObjectRepository):
         dg.add_uint16(clientmsg.CLIENT_REMOVE_INTEREST)
         dg.add_uint32(context_id)
         dg.add_uint16(interest_id)
-        self.send(dg)
+        self.send_datagram(dg)
 
     def send_CLIENT_OBJECT_SET_FIELD(self):
         # FIXME: Needs signature and implementation

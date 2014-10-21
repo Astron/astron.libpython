@@ -17,7 +17,7 @@ class Connection:
         # socket.error: [Errno 111] Connection refused
         self.socket.connect((host, port))
         self.socket.setblocking(0)
-        self.socket.settimeout(None)
+        #self.socket.settimeout(None)
         self._is_connected = True
         self.reading_message = False
         self.remaining_length = DATAGRAM_HEADER_SIZE
@@ -61,6 +61,7 @@ class Connection:
 
     def read(self):
         try:
+            #print("Blocking: %s" % (str(self.socket.), ))
             data = self.socket.recv(self.remaining_length)
             # Has the connection been closed?
             if len(data) == 0:
