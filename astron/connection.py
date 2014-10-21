@@ -12,6 +12,8 @@ class Connection:
     def connect(self, host='127.0.0.1', port=7199, connect_timeout=None):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.settimeout(connect_timeout)
+        # FIXME: Handle this!
+        # socket.error: [Errno 111] Connection refused
         self.socket.connect((host, port))
         self.socket.setblocking(0)
         self.socket.settimeout(None)

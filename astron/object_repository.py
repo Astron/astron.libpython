@@ -31,30 +31,41 @@ class ObjectRepository(Connection):
         for word in astron_keywords:
             self.mod.add_keyword(word)
         dcfile.parse_dcfile(self.mod, dcfilename)
-        self.dclass_id_to_cls = {}
-        self.dclass_name_to_cls = {}
-        for i_id in range(0, self.mod.num_imports()):
-            # Determine and import the module
-            dc_module = self.mod.get_import(i_id).module
-            for symbol in self.mod.get_import(i_id).symbols:
-                # Figure out the names of used classes
-                fragments = symbol.split('/')
-                base_class = fragments[0]
-                postfixes = fragments[1:] + ['']
-                for postfix in postfixes:
-                    #cls = importlib.import_module(dc_module, base_class + postfix)
-                    cls = 'the_class'
-                    self.dclass_id_to_cls[(i_id, postfix)] = cls
-                    self.dclass_name_to_cls[base_class + postfix] = cls
-        pprint(self.dclass_id_to_cls)
-        pprint(self.dclass_name_to_cls)
-
+        # Create class definition dicts
+        self.create_dclass_dicts()
+        # FIXME: Remove this after debugging
+        #pprint(self.dclass_id_to_cls)
+        #pprint(self.dclass_name_to_cls)
 
         self.handlers = {}
         
         # FIXME: Maybe move this into ClientRepository, if Internals won't get Interests in the future.
         self.interest_counters = {}
         self.interest_callback_map = {}
+
+    def create_dclass_dicts(self):
+        self.dclass_id_to_cls = {}   # (<int>, 'PF'): <Class>
+        self.dclass_id_to_name = {}  # (<int>, 'PF'): 'DClass'
+        self.dclass_name_to_id = {}  # 'DClassPF'   : <int>  , ('DClass', 'PF') : <int>
+        self.dclass_name_to_cls = {} # 'DClassPF'   : <Class>, ('DClass', 'PF') : <Class>
+        for dclass_id in range(0, self.mod.num_imports()):
+            # Determine and import the module
+            dclass_module_name = self.mod.get_import(dclass_id).module
+            dclass_module = importlib.import_module(dclass_module_name)
+            for symbol in self.mod.get_import(dclass_id).symbols:
+                # Figure out the names of used classes
+                fragments = str(symbol).split('/')
+                base_class = fragments[0]
+                postfixes = fragments[1:] + ['']
+                for postfix in postfixes:
+                    #print(dclass_module, base_class + postfix)
+                    cls = getattr(dclass_module, base_class + postfix)
+                    self.dclass_id_to_cls[(dclass_id, postfix)] = cls
+                    self.dclass_id_to_name[(dclass_id, postfix)] = base_class
+                    self.dclass_name_to_id[base_class + postfix] = dclass_id
+                    self.dclass_name_to_id[(base_class, postfix)] = dclass_id
+                    self.dclass_name_to_cls[base_class + postfix] = cls
+                    self.dclass_name_to_cls[(base_class, postfix)] = cls
 
     def poll_till_empty(self):
         """Process all received messages.
@@ -79,7 +90,6 @@ class ObjectRepository(Connection):
             return True
         except EOFError:
             return False
-
 
     def poll_forever(self):
         """Blocks until connection is lost. Processes datagrams as
@@ -108,15 +118,17 @@ class ObjectRepository(Connection):
         # Create the view object
         cls_name = self.mod.get_class_by_id(dclass_id).get_name() + cls_postfix
         # FIXME: Get the actual class
-        cls = DistributedObject
-        dist_obj = cls(self, do_id, parent_id, zone_id)
+        # cls = DistributedObject
+        cls = self.dclass_name_to_cls[cls_name]
+        dist_obj = cls(self, dclass_id, do_id, parent_id, zone_id)
         self.distributed_objects[do_id] = dist_obj
         # FIXME: Read the field values from the dgi and apply them
         dist_obj.init()
 
     def create_view_by_classname(self, cls_name, do_id, parent_id, zone_id):
-        cls = DistributedObject
-        dist_obj = cls(self, do_id, parent_id, zone_id)
+        cls = self.dclass_name_to_cls[cls_name]
+        dclass_id = self.dclass_name_to_id[cls_name]
+        dist_obj = cls(self, dclass_id, do_id, parent_id, zone_id)
         self.distributed_objects[do_id] = dist_obj
         # FIXME: Read the field values from the dgi and apply them
         dist_obj.init()
