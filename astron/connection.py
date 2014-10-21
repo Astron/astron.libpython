@@ -17,7 +17,6 @@ class Connection:
         # socket.error: [Errno 111] Connection refused
         self.socket.connect((host, port))
         self.socket.setblocking(0)
-        #self.socket.settimeout(None)
         self._is_connected = True
         self.reading_message = False
         self.remaining_length = DATAGRAM_HEADER_SIZE
@@ -41,6 +40,8 @@ class Connection:
         self.read()
         # Did we just finish reading the message length?
         if (not self.reading_message) and (self.remaining_length == 0):
+            # FIXME: Truncate partial data if you have more than needed, you dolt!
+            # This should be done in read() anyway, why is EVERYTHING read??
             length = struct.unpack('<H', self.partial_data)[0]
             self.partial_data = ''
             self.remaining_length = length
@@ -50,11 +51,11 @@ class Connection:
         # block above finished reading a message body, then this
         # happens:
         if self.reading_message and (self.remaining_length == 0):
-            #self.partial_data = '' # FIXME: Length header now has do be part of the datagram, too?
-            self.remaining_length = DATAGRAM_HEADER_SIZE
-            self.reading_message = False
             dg = Datagram()
             dg.add_data(self.partial_data)
+            self.partial_data = ''
+            self.remaining_length = DATAGRAM_HEADER_SIZE
+            self.reading_message = False
             return dg
         # So we did not actually finish reading a message at all. :(
         return

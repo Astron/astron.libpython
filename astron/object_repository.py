@@ -119,10 +119,7 @@ class ObjectRepository(Connection):
         zone_id = dgi.read_uint32()
         dclass_id = dgi.read_uint16()
         # Create the view object
-        cls_name = self.mod.get_class_by_id(dclass_id).get_name() + cls_postfix
-        # FIXME: Get the actual class
-        # cls = DistributedObject
-        cls = self.dclass_name_to_cls[cls_name]
+        cls = self.dclass_id_to_cls[(dclass_id, cls_postfix)]
         dist_obj = cls(self, dclass_id, do_id, parent_id, zone_id)
         self.distributed_objects[do_id] = dist_obj
         # FIXME: Read the field values from the dgi and apply them

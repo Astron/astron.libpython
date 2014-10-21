@@ -124,6 +124,9 @@ class DistributedMaprootUD(DistributedObject):
 # -------------------------------------------------------------------
 
 class DistributedAvatar(DistributedObject):
+    def init(self):
+        print("DistributedAvatar")
+        
     def generateInit(self):
         print(datetime.now().strftime("%H:%M:%S")+" DistributedAvatar.generateInit() for "+str(self.doId))
         model = base.loader.loadModel("models/smiley")
@@ -139,6 +142,9 @@ class DistributedAvatar(DistributedObject):
         DistributedNode.setXYZH(self, *args)
 
 class DistributedAvatarOV(DistributedObject):
+    def init(self):
+        print("DistributedAvatarOV")
+
     def generateInit(self):
         # Make yourself known to the client
         print(datetime.now().strftime("%H:%M:%S")+" DistributedAvatarOV.generate() for "+str(self.doId))

@@ -27,7 +27,7 @@ class DistributedObject:
         #pprint(self.type_packer)
     
     def init(self):
-        print("DO created: %d" % (self.do_id, ))
+        print("DO created: %d (%s)" % (self.do_id, str(type(self))))
     
     def delete(self):
         print("DO deleted: %d" % (self.do_id, ))

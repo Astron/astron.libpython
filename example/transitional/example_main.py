@@ -23,9 +23,4 @@ if __name__ == '__main__':
     while True:
         repo.poll_till_empty()
         #print(repo.poll_datagram())
-        sleep(1)
-
-## Lets do some random things
-#print mod.get_num_classes() # or GetNumClasses
-#cls = mod.get_class_by_name('Foobar')  # or getClassByName
-#print cls.get_name() # -> 'Foobar'
+        sleep(0.1)
