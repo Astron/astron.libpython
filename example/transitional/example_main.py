@@ -19,7 +19,7 @@ if __name__ == '__main__':
     def failed():
         print('Connection attempt failed.')
 
-    repo.connect(connected, failed, ejected)
+    repo.connect(connected, failed, ejected, host = '127.0.0.1', port = 6667)
 
     while True:
         repo.poll_till_empty()
