@@ -26,5 +26,5 @@ dclass DistributedMaproot {
 // position and heading.
 dclass DistributedAvatar {
   setXYZH(int16 / 1000, int16 / 1000, int16 / 1000, int16 / 50) broadcast required;
-  indicateIntent(int16 / 10, int16 / 10) ownsend airecv; 
+  indicateIntent(int16 / 10, int16 / 10) ownsend airecv;
 };

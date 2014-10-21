@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-import os
-import sys
-import time
+
+from time import sleep
+
 from astron.object_repository import ClientRepository
 
 if __name__ == '__main__':
@@ -9,6 +9,9 @@ if __name__ == '__main__':
 
     def connected():
         print('Connection established.')
+        login_manager = repo.create_view_by_classname('LoginManager', 1234, 0, 0)
+        sleep(1)
+        login_manager.login("guest", "guest")
 
     def ejected(error_code, reason):
         print('Got ejected (%i): %s' % (error_code, reason))
@@ -17,7 +20,11 @@ if __name__ == '__main__':
         print('Connection attempt failed.')
 
     repo.connect(connected, failed, ejected)
-    repo.poll_forever()
+
+    while True:
+        repo.poll_till_empty()
+        #print(repo.poll_datagram())
+        sleep(1)
 
 ## Lets do some random things
 #print mod.get_num_classes() # or GetNumClasses
