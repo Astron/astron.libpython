@@ -17,6 +17,10 @@ class DistributedObject:
                             module.kTypeInt16: self.pack_int16,
                             module.kTypeInt32: self.pack_int32,
                             module.kTypeInt64: self.pack_int64,
+                            module.kTypeUint8: self.pack_uint8,
+                            module.kTypeUint16: self.pack_uint16,
+                            module.kTypeUint32: self.pack_uint32,
+                            module.kTypeUint64: self.pack_uint64,
                             module.kTypeFloat32: self.pack_float32,
                             module.kTypeFloat64: self.pack_float64,
                             module.kTypeChar: self.pack_char,
@@ -69,15 +73,27 @@ class DistributedObject:
                     self.type_packer[arg_type](dg, values[arg_id])
 
     def pack_int8(self, dg, value):
-        dg.add_uint8(value)
+        dg.add_int8(value)
 
     def pack_int16(self, dg, value):
-        dg.add_uint16(value)
+        dg.add_int16(value)
 
     def pack_int32(self, dg, value):
-        dg.add_uint32(value)
+        dg.add_int32(value)
 
     def pack_int64(self, dg, value):
+        dg.add_int64(value)
+
+    def pack_uint8(self, dg, value):
+        dg.add_uint8(value)
+
+    def pack_uint16(self, dg, value):
+        dg.add_uint16(value)
+
+    def pack_uint32(self, dg, value):
+        dg.add_uint32(value)
+
+    def pack_uint64(self, dg, value):
         dg.add_uint64(value)
 
     def pack_float32(self, dg, value):
