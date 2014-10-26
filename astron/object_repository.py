@@ -112,6 +112,7 @@ class ObjectRepository(Connection):
             return
 
     def handle_datagram(self, dg):
+        print("ObjectRepository.handle_datagram(dg) was called, but should have been overloaded.")
         pass
 
     def create_view_from_datagram(self, dgi, cls_postfix = ''):
@@ -150,7 +151,7 @@ class InternalRepository(ObjectRepository):
                 host=default_host, port=default_client_port):
         # FIXME: Handle connection failures
         ObjectRepository.connect(self, host, port)
-        self.send_CONTROL_ADD_CHANNEL()
+        self.send_CONTROL_ADD_CHANNEL(self.ai_channel)
         connection_success()
         
     def create_message_stub(self, sender, *recipients):
@@ -175,13 +176,13 @@ class InternalRepository(ObjectRepository):
 
     # Sending messages
     
-    def send_CONTROL_ADD_CHANNEL(self):
+    def send_CONTROL_ADD_CHANNEL(self, channel):
         # CONTROL messages don't have sender fields
         dg = Datagram()
         dg.add_uint8(1)  # Number of recipients
         dg.add_uint64(1) # Recipient (control channel)
         dg.add_uint16(servermsg.CONTROL_ADD_CHANNEL)
-        dg.add_uint64(self.ai_channel)
+        dg.add_uint64(channel)
         self.send_datagram(dg)
 
     def send_STATESERVER_OBJECT_SET_AI(self, do_id):
