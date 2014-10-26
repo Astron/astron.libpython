@@ -24,6 +24,7 @@ class Connection:
 
     def disconnect(self):
         self.socket.close()
+        self.is_connected = False
 
     def is_connected(self):
         return self.is_connected

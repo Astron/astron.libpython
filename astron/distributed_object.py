@@ -2,6 +2,7 @@ from bamboo import module
 from bamboo.wire import Datagram
 from pprint import pprint
 from astron.client_messages import CLIENT_OBJECT_SET_FIELD
+from astron.object_repository import MSG_TYPE_CLIENT, MSG_TYPE_INTERNAL
 
 class DistributedObject:
     def __init__(self, repository, dclass_id, do_id, parent_id, zone_id):
@@ -46,7 +47,11 @@ class DistributedObject:
         if num_args != len(values):
             print("Distributed method %s requires %d args, %d were provided" % (field_name, num_args, len(values)))
         else:
-            dg = Datagram()
+            if self.repo.msg_type == MSG_TYPE_CLIENT:
+                dg = self.repo.create_message_stub()
+            else:
+                # FIXME: If this an AIR object, recipients and sender have to be provided here.
+                dg = self.repo.create_message_stub()
             dg.add_int16(CLIENT_OBJECT_SET_FIELD)
             dg.add_int32(self.do_id)
             dg.add_int16(dmethod_id)

@@ -8,13 +8,18 @@ from bamboo.wire import Datagram, DatagramIterator
 from connection import Connection
 import client_messages as clientmsg
 import internal_messages as servermsg
-from distributed_object import DistributedObject
 import socket
 import importlib
 from pprint import pprint
 
 DATAGRAM_SIZE = 2
 DATAGRAM_ENCODING = '<H'
+
+MSG_TYPE_INTERNAL = 1
+MSG_TYPE_CLIENT = 2
+
+# This depends on MSG_TYPE_* already being defined.
+from distributed_object import DistributedObject
 
 astron_keywords = ['clsend', 'ownsend',
                    'broadcast', 'clrecv', 'ownrecv', 'airecv',
@@ -38,6 +43,8 @@ class ObjectRepository(Connection):
         # FIXME: Remove this after debugging
         #pprint(self.dclass_id_to_cls)
         #pprint(self.dclass_name_to_cls)
+        self.distributed_objects = {}
+        self.owner_views = {}
 
         self.handlers = {}
         
@@ -105,13 +112,7 @@ class ObjectRepository(Connection):
             return
 
     def handle_datagram(self, dg):
-        dgi = DatagramIterator(dg)
-        msgtype = dgi.read_uint16()
-        print("Handling %d" % (msgtype, ))
-        if msgtype in self.handlers.keys():
-            self.handlers[msgtype](dgi)
-        else:
-            print("Received unhandled message type " + str(msgtype))
+        pass
 
     def create_view_from_datagram(self, dgi, cls_postfix = ''):
         do_id = dgi.read_uint32()
@@ -136,20 +137,64 @@ class ObjectRepository(Connection):
 
 
 class InternalRepository(ObjectRepository):
-    def __init__(self, version_string, dcfilename=default_dcfilename):
+    def __init__(self, version_string, dcfilename=default_dcfilename, stateserver=400000, ai_channel=500000):
         ObjectRepository.__init__(self, dcfilename=dcfilename)
-        self.handlers = {}
+        self.stateserver = stateserver
+        self.ai_channel = ai_channel
+        self.msg_type = MSG_TYPE_INTERNAL
+        self.handlers.update({
+            # FIXME: Add handlers for incoming messages
+                              })
 
-    def connect(self, host=default_host, port=default_internal_port):
+    def connect(self, connection_success, connection_failure,
+                host=default_host, port=default_client_port):
+        # FIXME: Handle connection failures
         ObjectRepository.connect(self, host, port)
+        self.send_CONTROL_ADD_CHANNEL()
+        connection_success()
+        
+    def create_message_stub(self, sender, *recipients):
+        dg = Datagram()
+        dg.add_uint8(len(recipients))
+        for recipient in recipients:
+            dg.add_uint64(recipient)
+        dg.add_uint64(sender)
+        return dg
 
+    def handle_datagram(self, dg):
+        dgi = DatagramIterator(dg)
+        num_recipients = dgi.read_uint8()
+        recipients = [dgi.read_uint64() for _ in range(0, num_recipients)]
+        sender = dgi.read_uint64()
+        msgtype = dgi.read_uint16()
+        print("Handling %d" % (msgtype, ))
+        if msgtype in self.handlers.keys():
+            self.handlers[msgtype](dgi, sender, recipients)
+        else:
+            print("Received unhandled message type " + str(msgtype))
+
+    # Sending messages
+    
+    def send_CONTROL_ADD_CHANNEL(self):
+        # CONTROL messages don't have sender fields
+        dg = Datagram()
+        dg.add_uint8(1)  # Number of recipients
+        dg.add_uint64(1) # Recipient (control channel)
+        dg.add_uint16(servermsg.CONTROL_ADD_CHANNEL)
+        dg.add_uint64(self.ai_channel)
+        self.send_datagram(dg)
+
+    def send_STATESERVER_OBJECT_SET_AI(self, do_id):
+        dg = self.create_message_stub(self.ai_channel, do_id)
+        dg.add_uint16(servermsg.STATESERVER_OBJECT_SET_AI)
+        dg.add_uint64(self.ai_channel)
+        self.send_datagram(dg)
 
 class ClientRepository(ObjectRepository):
     def __init__(self, version_string, dcfilename=default_dcfilename):
         ObjectRepository.__init__(self, dcfilename=dcfilename)
         self.version_string = version_string
-        self.distributed_objects = {}
-        self.owner_views = {}
+        self.msg_type = MSG_TYPE_CLIENT
         self.handlers.update({
             clientmsg.CLIENT_HELLO_RESP:                        self.handle_CLIENT_HELLO_RESP,
             clientmsg.CLIENT_EJECT:                             self.handle_CLIENT_EJECT,
@@ -172,8 +217,20 @@ class ClientRepository(ObjectRepository):
         self.connection_eject = connection_eject
 
         ObjectRepository.connect(self, host, port)
-        # FIXME: send_client_hello needs to be asynchronous.
         self.send_CLIENT_HELLO()
+        
+    def create_message_stub(self):
+        dg = Datagram()
+        return dg
+
+    def handle_datagram(self, dg):
+        dgi = DatagramIterator(dg)
+        msgtype = dgi.read_uint16()
+        print("Handling %d" % (msgtype, ))
+        if msgtype in self.handlers.keys():
+            self.handlers[msgtype](dgi)
+        else:
+            print("Received unhandled message type " + str(msgtype))
 
     # Sending messages
 

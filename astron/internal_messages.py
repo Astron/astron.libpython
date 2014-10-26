@@ -15,13 +15,13 @@ CONTROL_CLEAR_POST_REMOVES =                        9011
 # https://astron.github.io/astron/en/master/12-stateserver.html
 
 # StateServer Control
-STATESERVER_CREATE_OBJECT_WITH_REQUIRED =           2000
-STATESERVER_CREATE_OBJECT_WITH_REQUIRED_OTHER =     2001
+STATESERVER_CREATE_OBJECT_WITH_REQUIRED =           2000 # -> SS. Create object in SS. it'll then broadcast ENTER_LOCATION
+STATESERVER_CREATE_OBJECT_WITH_REQUIRED_OTHER =     2001 # -> SS. Create object in SS. it'll then broadcast ENTER_LOCATION
 
 # Distributed Object Control
-STATESERVER_DELETE_AI_OBJECTS =                     2009
-STATESERVER_OBJECT_GET_FIELD =                      2010
-STATESERVER_OBJECT_GET_FIELD_RESP =                 2011
+STATESERVER_DELETE_AI_OBJECTS =                     2009 # -> SS. Delete all DOs associated with this AI.
+STATESERVER_OBJECT_GET_FIELD =                      2010 # -> DO. Request value of field. 
+STATESERVER_OBJECT_GET_FIELD_RESP =                 2011 # <- DO. Inform of value of field.
 STATESERVER_OBJECT_GET_FIELDS =                     2012
 STATESERVER_OBJECT_GET_FIELDS_RESP =                2013
 STATESERVER_OBJECT_GET_ALL =                        2014
