@@ -11,6 +11,8 @@ class DistributedObject:
         self.dclass = self.repo.mod.get_class(dclass_id)
         self.dmethod_name_to_id = dict([(self.dclass.get_field(dmethod_id).name(), dmethod_id)
                                         for dmethod_id in range(0, self.dclass.num_fields())])
+        self.dmethod_id_to_name = dict([(dmethod_id, self.dclass.get_field(dmethod_id).name())
+                                        for dmethod_id in range(0, self.dclass.num_fields())])
         self.do_id = do_id
         self.parent = parent_id
         self.zone = zone_id
@@ -28,8 +30,20 @@ class DistributedObject:
                             module.kTypeString: self.pack_string,
                             module.kTypeVarstring: self.pack_string,
                             }
-        # FIXME: Remove after debugging
-        #pprint(self.type_packer)
+        self.type_unpacker = {module.kTypeInt8: self.unpack_int8,
+                              module.kTypeInt16: self.unpack_int16,
+                              module.kTypeInt32: self.unpack_int32,
+                              module.kTypeInt64: self.unpack_int64,
+                              module.kTypeUint8: self.unpack_uint8,
+                              module.kTypeUint16: self.unpack_uint16,
+                              module.kTypeUint32: self.unpack_uint32,
+                              module.kTypeUint64: self.unpack_uint64,
+                              module.kTypeFloat32: self.unpack_float32,
+                              module.kTypeFloat64: self.unpack_float64,
+                              module.kTypeChar: self.unpack_char,
+                              module.kTypeString: self.unpack_string,
+                              module.kTypeVarstring: self.unpack_string,
+                            }
     
     def init(self):
         print("DO created: %d (%s)" % (self.do_id, str(type(self))))
@@ -40,6 +54,21 @@ class DistributedObject:
     def call_dist_method(self, name, *args):
         pass
     
+    def update_field(self, field_id, dgi):
+        """Handles incoming SET_FIELD updates."""
+        decoded_args = []
+        field = self.dclass.get_field(field_id)
+        num_args = field.type().as_method().num_parameters()
+        for arg_id in range(0, num_args):
+            arg = field.type().as_method().get_parameter(arg_id)
+            arg_type = arg.type().subtype()
+            if arg_type == module.kTypeStruct:
+                decoded_args.append(self.unpack_struct(dgi, arg.type().as_struct()))
+            else:
+                decoded_args.append(self.type_unpacker[arg_type](dgi))
+        print(decoded_args)
+        getattr(self, field.name())(*decoded_args)
+
     def send_update(self, field_name, *values):
         dmethod_id = self.dmethod_name_to_id[field_name]
         field = self.dclass.get_field(dmethod_id)
@@ -77,6 +106,18 @@ class DistributedObject:
                 else:
                     self.type_packer[arg_type](dg, values[arg_id])
 
+    def unpack_struct(self, dgi, struct):
+        partial_args = []
+        num_args = struct.num_fields()
+        for arg_id in range(0, num_args):
+            arg = struct.get_field(arg_id)
+            arg_type = arg.type().subtype()
+            if arg_type == module.kTypeStruct:
+                partial_args.append(self.unpack_struct(dgi, arg.type().as_struct()))
+            else:
+                partial_args.append(self.type_unpacker[arg_type](dgi))
+        return partial_args
+
     def pack_int8(self, dg, value):
         dg.add_int8(value)
 
@@ -112,3 +153,39 @@ class DistributedObject:
 
     def pack_string(self, dg, value):
         dg.add_string(value)
+
+    def unpack_int8(self, dgi):
+        return dgi.read_int8()
+
+    def unpack_int16(self, dgi):
+        return dgi.read_int16()
+
+    def unpack_int32(self, dgi):
+        return dgi.read_int32()
+
+    def unpack_int64(self, dgi):
+        return dgi.read_int64()
+
+    def unpack_uint8(self, dgi):
+        return dgi.read_uint8()
+
+    def unpack_uint16(self, dgi):
+        return dgi.read_uint16()
+
+    def unpack_uint32(self, dgi):
+        return dgi.read_uint32()
+
+    def unpack_uint64(self, dgi):
+        return dgi.read_uint64()
+
+    def unpack_float32(self, dgi):
+        return dgi.read_float32()
+
+    def unpack_float64(self, dgi):
+        return dgi.read_float64()
+
+    def unpack_char(self, dgi):
+        return dgi.read_char()
+
+    def unpack_string(self, dgi):
+        return dgi.read_string()

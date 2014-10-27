@@ -144,6 +144,7 @@ class InternalRepository(ObjectRepository):
         self.ai_channel = ai_channel
         self.msg_type = MSG_TYPE_INTERNAL
         self.handlers.update({
+            servermsg.STATESERVER_OBJECT_SET_FIELD: self.handle_STATESERVER_OBJECT_SET_FIELD,
             # FIXME: Add handlers for incoming messages
                               })
 
@@ -191,6 +192,13 @@ class InternalRepository(ObjectRepository):
         dg.add_uint64(self.ai_channel)
         self.send_datagram(dg)
 
+    # Receive messages
+
+    def handle_STATESERVER_OBJECT_SET_FIELD(self, dgi, sender, recipients):
+        do_id = dgi.read_uint32()
+        field_id = dgi.read_uint16()
+        self.distributed_objects[do_id].update_field(field_id, dgi)
+        
 class ClientRepository(ObjectRepository):
     def __init__(self, version_string, dcfilename=default_dcfilename):
         ObjectRepository.__init__(self, dcfilename=dcfilename)
