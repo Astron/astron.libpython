@@ -1,7 +1,8 @@
 from bamboo import module
 from bamboo.wire import Datagram
 from pprint import pprint
-from astron.client_messages import CLIENT_OBJECT_SET_FIELD
+import client_messages as clientmsg
+import internal_messages as servermsg
 from astron.object_repository import MSG_TYPE_CLIENT, MSG_TYPE_INTERNAL
 
 class DistributedObject:
@@ -53,7 +54,11 @@ class DistributedObject:
 
     def call_dist_method(self, name, *args):
         pass
-    
+
+    def acquire_ai(self):
+        # FIXME: This should have more intelligence, i.e. using GET_AI (CHANGE_AI?)
+        self.repo.send_STATESERVER_OBJECT_SET_AI(self.do_id)
+        
     def update_field(self, field_id, dgi):
         """Handles incoming SET_FIELD updates."""
         decoded_args = []
@@ -78,10 +83,11 @@ class DistributedObject:
         else:
             if self.repo.msg_type == MSG_TYPE_CLIENT:
                 dg = self.repo.create_message_stub()
+                dg.add_int16(clientmsg.CLIENT_OBJECT_SET_FIELD)
             else:
                 # FIXME: If this an AIR object, recipients and sender have to be provided here.
-                dg = self.repo.create_message_stub()
-            dg.add_int16(CLIENT_OBJECT_SET_FIELD)
+                dg = self.repo.create_message_stub(self.do_id, self.do_id)
+                dg.add_int16(servermsg.STATESERVER_OBJECT_SET_FIELD)
             dg.add_int32(self.do_id)
             dg.add_int16(dmethod_id)
             for arg_id in range(0, num_args):
@@ -189,3 +195,7 @@ class DistributedObject:
 
     def unpack_string(self, dgi):
         return dgi.read_string()
+
+    # Sending
+    
+

@@ -49,8 +49,50 @@ class ObjectRepository(Connection):
         self.handlers = {}
         
         # FIXME: Maybe move this into ClientRepository, if Internals won't get Interests in the future.
+        # FIXME: Actually, fold this into the general callback mechanism.
         self.interest_counters = {}
         self.interest_callback_map = {}
+
+        # The callback system for handling *_RESP messages
+        self.msg_to_msgresp_map = {
+            servermsg.STATESERVER_OBJECT_GET_FIELD        : servermsg.STATESERVER_OBJECT_GET_FIELD_RESP,
+            servermsg.STATESERVER_OBJECT_GET_FIELDS       : servermsg.STATESERVER_OBJECT_GET_FIELDS_RESP,
+            servermsg.STATESERVER_OBJECT_GET_ALL          : servermsg.STATESERVER_OBJECT_GET_ALL_RESP,
+            servermsg.STATESERVER_OBJECT_GET_LOCATION     : servermsg.STATESERVER_OBJECT_GET_LOCATION_RESP,
+            servermsg.STATESERVER_OBJECT_GET_AI           : servermsg.STATESERVER_OBJECT_GET_AI_RESP,
+            servermsg.STATESERVER_OBJECT_GET_OWNER        : servermsg.STATESERVER_OBJECT_GET_OWNER_RESP,
+            servermsg.STATESERVER_OBJECT_GET_ZONE_COUNT   : servermsg.STATESERVER_OBJECT_GET_ZONE_COUNT_RESP,
+            servermsg.STATESERVER_OBJECT_GET_ZONES_COUNT  : servermsg.STATESERVER_OBJECT_GET_ZONES_COUNT_RESP,
+            servermsg.STATESERVER_OBJECT_GET_CHILD_COUNT  : servermsg.STATESERVER_OBJECT_GET_CHILD_COUNT_RESP,
+            servermsg.DBSS_OBJECT_GET_ACTIVATED           : servermsg.DBSS_OBJECT_GET_ACTIVATED_RESP,
+            servermsg.DBSERVER_CREATE_OBJECT              : servermsg.DBSERVER_CREATE_OBJECT_RESP,
+            servermsg.DBSERVER_OBJECT_GET_FIELD           : servermsg.DBSERVER_OBJECT_GET_FIELD_RESP,
+            servermsg.DBSERVER_OBJECT_GET_FIELDS          : servermsg.DBSERVER_OBJECT_GET_FIELDS_RESP,
+            servermsg.DBSERVER_OBJECT_GET_ALL             : servermsg.DBSERVER_OBJECT_GET_ALL_RESP,
+            servermsg.DBSERVER_OBJECT_SET_FIELD_IF_EQUALS : servermsg.DBSERVER_OBJECT_SET_FIELD_IF_EQUALS_RESP,
+            servermsg.DBSERVER_OBJECT_SET_FIELDS_IF_EQUALS: servermsg.DBSERVER_OBJECT_SET_FIELDS_IF_EQUALS_RESP,
+            servermsg.DBSERVER_OBJECT_SET_FIELD_IF_EMPTY  : servermsg.DBSERVER_OBJECT_SET_FIELD_IF_EMPTY_RESP,
+            }
+        self.context_counters = {
+            servermsg.STATESERVER_OBJECT_GET_FIELD_RESP        : 0,
+            servermsg.STATESERVER_OBJECT_GET_FIELDS_RESP       : 0,
+            servermsg.STATESERVER_OBJECT_GET_ALL_RESP          : 0,
+            servermsg.STATESERVER_OBJECT_GET_LOCATION_RESP     : 0,
+            servermsg.STATESERVER_OBJECT_GET_AI_RESP           : 0,
+            servermsg.STATESERVER_OBJECT_GET_OWNER_RESP        : 0,
+            servermsg.STATESERVER_OBJECT_GET_ZONE_COUNT_RESP   : 0,
+            servermsg.STATESERVER_OBJECT_GET_ZONES_COUNT_RESP  : 0,
+            servermsg.STATESERVER_OBJECT_GET_CHILD_COUNT_RESP  : 0,
+            servermsg.DBSS_OBJECT_GET_ACTIVATED_RESP           : 0,
+            servermsg.DBSERVER_CREATE_OBJECT_RESP              : 0,
+            servermsg.DBSERVER_OBJECT_GET_FIELD_RESP           : 0,
+            servermsg.DBSERVER_OBJECT_GET_FIELDS_RESP          : 0,
+            servermsg.DBSERVER_OBJECT_GET_ALL_RESP             : 0,
+            servermsg.DBSERVER_OBJECT_SET_FIELD_IF_EQUALS_RESP : 0,
+            servermsg.DBSERVER_OBJECT_SET_FIELDS_IF_EQUALS_RESP: 0,
+            servermsg.DBSERVER_OBJECT_SET_FIELD_IF_EMPTY_RESP  : 0,
+            }
+        self.callbacks = {}
 
     def create_dclass_dicts(self):
         self.dclass_id_to_cls = {}   # (<int>, 'PF'): <Class>
@@ -115,6 +157,8 @@ class ObjectRepository(Connection):
         print("ObjectRepository.handle_datagram(dg) was called, but should have been overloaded.")
         pass
 
+    # Creating client/AI-side views
+
     def create_view_from_datagram(self, dgi, cls_postfix = ''):
         do_id = dgi.read_uint32()
         parent_id = dgi.read_uint32()
@@ -127,15 +171,27 @@ class ObjectRepository(Connection):
         # FIXME: Read the field values from the dgi and apply them
         dist_obj.init()
 
-    def create_view_by_classname(self, cls_name, do_id, parent_id, zone_id):
+    def create_distobjglobal_view(self, cls_name, do_id, parent_id, zone_id):
         cls = self.dclass_name_to_cls[cls_name]
         dclass_id = self.dclass_name_to_id[cls_name]
         dist_obj = cls(self, dclass_id, do_id, parent_id, zone_id)
         self.distributed_objects[do_id] = dist_obj
-        # FIXME: Read the field values from the dgi and apply them
         dist_obj.init()
         return dist_obj
 
+    # Callback management for *_RESP messages
+
+    def register_callback(self, msg_type, callback, args = [], kwargs = {}):
+        resp_msg_type = self.msg_to_msgresp_map[msg_type]
+        context = self.context_counters[resp_msg_type]
+        self.context_counters[resp_msg_type] += 1
+        self.callbacks[(resp_msg_type, context)] = (callback, args, kwargs)
+        return context
+
+    def fire_callback(self, resp_msg_type, context):
+        callback = self.callbacks[(resp_msg_type, context)]
+        del self.callbacks[(resp_msg_type, context)]
+        return callback
 
 class InternalRepository(ObjectRepository):
     def __init__(self, version_string, dcfilename=default_dcfilename, stateserver=400000, ai_channel=500000):
@@ -175,6 +231,10 @@ class InternalRepository(ObjectRepository):
         else:
             print("Received unhandled message type " + str(msgtype))
 
+    def create_distobj(self, cls_name, do_id, parent_id, zone_id):
+        dclass_id = self.dclass_name_to_id[cls_name]
+        self.send_STATESERVER_CREATE_OBJECT_WITH_REQUIRED(dclass_id, do_id, parent_id, zone_id)
+
     # Sending messages
     
     def send_CONTROL_ADD_CHANNEL(self, channel):
@@ -190,6 +250,33 @@ class InternalRepository(ObjectRepository):
         dg = self.create_message_stub(self.ai_channel, do_id)
         dg.add_uint16(servermsg.STATESERVER_OBJECT_SET_AI)
         dg.add_uint64(self.ai_channel)
+        self.send_datagram(dg)
+        
+    def send_STATESERVER_DELETE_AI_OBJECTS(self):
+        dg = self.create_message_stub(self.ai_channel, self.stateserver)
+        dg.add_uint16(servermsg.STATESERVER_DELETE_AI_OBJECTS)
+        dg.add_uint64(self.ai_channel)
+        self.send_datagram(dg)
+
+    def send_STATESERVER_CREATE_OBJECT_WITH_REQUIRED(self, dclass_id, do_id, parent, zone):
+        dg = self.create_message_stub(self.ai_channel, self.stateserver)
+        dg.add_uint16(servermsg.STATESERVER_DELETE_AI_OBJECTS)
+        dg.add_uint32(do_id)
+        dg.add_uint32(parent)
+        dg.add_uint32(zone)
+        dg.add_uint16(dclass_id)
+        # FIXME: Add REQUIRED fields
+        self.send_datagram(dg)
+
+    def send_STATESERVER_CREATE_OBJECT_WITH_REQUIRED_OTHER(self):
+        dg = self.repo.create_message_stub(self.do_id, self.stateserver)
+        dg.add_uint16(servermsg.STATESERVER_DELETE_AI_OBJECTS)
+        dg.add_uint32(self.do_id)
+        dg.add_uint32(self.parent)
+        dg.add_uint32(self.zone)
+        dg.add_uint16(self.dclass_id)
+        # FIXME: Add REQUIRED fields
+        # FIXME: Add OTHER fields
         self.send_datagram(dg)
 
     # Receive messages

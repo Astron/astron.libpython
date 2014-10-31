@@ -9,8 +9,7 @@ if __name__ == '__main__':
 
     def connected():
         print('Connection established.')
-        login_manager = repo.create_view_by_classname('LoginManagerUD', 1234, 0, 0)
-        # repo.send_STATESERVER_OBJECT_SET_AI(1234)
+        login_manager = repo.create_distobjglobal_view('LoginManagerUD', 1234, 0, 0)
         repo.send_CONTROL_ADD_CHANNEL(1234)
 
     def failed():
@@ -19,6 +18,6 @@ if __name__ == '__main__':
     repo.connect(connected, failed, host = '127.0.0.1', port = 7199)
 
     while True:
+        print("Polling...")
         repo.poll_till_empty()
-        #print(repo.poll_datagram())
-        sleep(0.1)
+        sleep(2)

@@ -9,7 +9,7 @@ if __name__ == '__main__':
 
     def connected():
         print('Connection established.')
-        login_manager = repo.create_view_by_classname('LoginManager', 1234, 0, 0)
+        login_manager = repo.create_distobjglobal_view('LoginManager', 1234, 0, 0)
         login_manager.login("guest", "guest")
 
     def ejected(error_code, reason):
