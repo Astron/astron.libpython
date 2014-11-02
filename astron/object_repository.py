@@ -171,10 +171,10 @@ class ObjectRepository(Connection):
         # FIXME: Read the field values from the dgi and apply them
         dist_obj.init()
 
-    def create_distobjglobal_view(self, cls_name, do_id, parent_id, zone_id):
+    def create_distobjglobal_view(self, cls_name, do_id):
         cls = self.dclass_name_to_cls[cls_name]
         dclass_id = self.dclass_name_to_id[cls_name]
-        dist_obj = cls(self, dclass_id, do_id, parent_id, zone_id)
+        dist_obj = cls(self, dclass_id, do_id, 0, 0)
         self.distributed_objects[do_id] = dist_obj
         dist_obj.init()
         return dist_obj
@@ -200,9 +200,28 @@ class InternalRepository(ObjectRepository):
         self.ai_channel = ai_channel
         self.msg_type = MSG_TYPE_INTERNAL
         self.handlers.update({
-            servermsg.STATESERVER_OBJECT_SET_FIELD: self.handle_STATESERVER_OBJECT_SET_FIELD,
+            servermsg.STATESERVER_OBJECT_SET_FIELD:                    self.handle_STATESERVER_OBJECT_SET_FIELD,
+            servermsg.STATESERVER_OBJECT_CHANGING_LOCATION:            self.handle_STATESERVER_OBJECT_CHANGING_LOCATION,
+            servermsg.STATESERVER_OBJECT_GET_AI:                       self.handle_STATESERVER_OBJECT_GET_AI,
+            servermsg.STATESERVER_OBJECT_ENTER_LOCATION_WITH_REQUIRED: self.handle_STATESERVER_OBJECT_ENTER_LOCATION_WITH_REQUIRED,
+            servermsg.STATESERVER_OBJECT_ENTER_AI_WITH_REQUIRED:       self.handle_STATESERVER_OBJECT_ENTER_AI_WITH_REQUIRED,
             # FIXME: Add handlers for incoming messages
-                              })
+            })
+        self.global_views = {}
+        self.repo_interests = set()
+        
+    def add_ai_interest(self, distobj_id, zone_id):
+        self.repo_interests.add(distobj_id * 2**32 | zone_id)
+        # FIXME: As do_ids and zones may be of different sizes,
+        # this calculation has to take that into account.
+        self.send_CONTROL_ADD_CHANNEL(distobj_id * 2**32 | zone_id)
+        # FIXME: Request list of objects already existing in that
+        # zone for ENTER.
+        # FIXME: Messages for DOs that haven't entered yet may come
+        # over the control channel. Either some kind of solution is
+        # needed, or AIR interests shall be implemented in Astron as
+        # actual messages.
+        # FIXME: There should also be remove_ai_interest(distobj, zone)
 
     def connect(self, connection_success, connection_failure,
                 host=default_host, port=default_client_port):
@@ -225,15 +244,17 @@ class InternalRepository(ObjectRepository):
         recipients = [dgi.read_uint64() for _ in range(0, num_recipients)]
         sender = dgi.read_uint64()
         msgtype = dgi.read_uint16()
-        print("Handling %d" % (msgtype, ))
         if msgtype in self.handlers.keys():
             self.handlers[msgtype](dgi, sender, recipients)
         else:
             print("Received unhandled message type " + str(msgtype))
 
-    def create_distobj(self, cls_name, do_id, parent_id, zone_id):
+    def create_distobj(self, cls_name, do_id, parent_id, zone_id, set_ai = False):
         dclass_id = self.dclass_name_to_id[cls_name]
         self.send_STATESERVER_CREATE_OBJECT_WITH_REQUIRED(dclass_id, do_id, parent_id, zone_id)
+        if set_ai:
+            self.send_STATESERVER_OBJECT_SET_AI(do_id)
+
 
     # Sending messages
     
@@ -260,7 +281,7 @@ class InternalRepository(ObjectRepository):
 
     def send_STATESERVER_CREATE_OBJECT_WITH_REQUIRED(self, dclass_id, do_id, parent, zone):
         dg = self.create_message_stub(self.ai_channel, self.stateserver)
-        dg.add_uint16(servermsg.STATESERVER_DELETE_AI_OBJECTS)
+        dg.add_uint16(servermsg.STATESERVER_CREATE_OBJECT_WITH_REQUIRED)
         dg.add_uint32(do_id)
         dg.add_uint32(parent)
         dg.add_uint32(zone)
@@ -270,7 +291,7 @@ class InternalRepository(ObjectRepository):
 
     def send_STATESERVER_CREATE_OBJECT_WITH_REQUIRED_OTHER(self):
         dg = self.repo.create_message_stub(self.do_id, self.stateserver)
-        dg.add_uint16(servermsg.STATESERVER_DELETE_AI_OBJECTS)
+        dg.add_uint16(servermsg.STATESERVER_CREATE_OBJECT_WITH_REQUIRED_OTHER)
         dg.add_uint32(self.do_id)
         dg.add_uint32(self.parent)
         dg.add_uint32(self.zone)
@@ -285,7 +306,19 @@ class InternalRepository(ObjectRepository):
         do_id = dgi.read_uint32()
         field_id = dgi.read_uint16()
         self.distributed_objects[do_id].update_field(field_id, dgi)
+
+    def handle_STATESERVER_OBJECT_CHANGING_LOCATION(self, dgi, sender, recipients):
+        print("handle_STATESERVER_OBJECT_CHANGING_LOCATION", sender, recipients)
         
+    def handle_STATESERVER_OBJECT_GET_AI(self, dgi, sender, recipients):
+        print("handle_STATESERVER_OBJECT_GET_AI", sender, recipients)
+        
+    def handle_STATESERVER_OBJECT_ENTER_LOCATION_WITH_REQUIRED(self, dgi, sender, recipients):
+        print("handle_STATESERVER_OBJECT_ENTER_LOCATION_WITH_REQUIRED", sender, recipients)
+        
+    def handle_STATESERVER_OBJECT_ENTER_AI_WITH_REQUIRED(self, dgi, sender, recipients):
+        self.create_view_from_datagram(dgi, cls_postfix = 'AI')
+
 class ClientRepository(ObjectRepository):
     def __init__(self, version_string, dcfilename=default_dcfilename):
         ObjectRepository.__init__(self, dcfilename=dcfilename)

@@ -3,13 +3,14 @@
 from time import sleep
 
 from astron.object_repository import ClientRepository
+from shared_constants import *
 
 if __name__ == '__main__':
     repo = ClientRepository('SimpleExample v0.2', 'simple_example.dc')
 
     def connected():
         print('Connection established.')
-        login_manager = repo.create_distobjglobal_view('LoginManager', 1234, 0, 0)
+        login_manager = repo.create_distobjglobal_view('LoginManager', LOGIN_MANAGER_DO_ID)
         login_manager.login("guest", "guest")
 
     def ejected(error_code, reason):

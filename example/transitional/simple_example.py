@@ -1,20 +1,12 @@
-from astron.object_repository import DistributedObject
-
 from datetime import datetime
 
-# Constant DO and channel IDs
-LoginManagerId = 1234
+from astron.object_repository import DistributedObject
+from shared_constants import *
 
 # Game settings
 avatar_speed = 3.0
 avatar_rotation_speed = 90.0
 
-
-class GameRoot(DistributedObject):
-    pass
-
-class GameRootAI(DistributedObject):
-    pass
 
 # -------------------------------------------------------------------
 # LoginManager
@@ -41,6 +33,7 @@ class LoginManagerAI(DistributedObject):
 
 class LoginManagerUD(DistributedObject):
     def init(self):
+        self.maproot_do_id = None
         print("LoginManagerUD view created")
 
     def set_maproot(self, maproot_doId):
@@ -49,6 +42,17 @@ class LoginManagerUD(DistributedObject):
 
     def login(self, username, password):
         print("Received login request")
+        if self.maproot_do_id != None:
+            if username == "guest" and password == "guest":
+                print("Logging in successfully")
+            else: # Bad credentials
+                # FIXME: Implement
+                print("Disconnecting for bad credentials")
+        else:
+            # maproot hasn't contacted us yet.
+            # FIXME: ...or has left, and no replacement has arrived.
+            # FIXME: Implement a disconnection with reason "game not up yet".
+            print("Dropping connection attempt due to missing maproot")
 
 # -------------------------------------------------------------------
 # DistributedMaproot
@@ -64,8 +68,8 @@ class DistributedMaprootAI(DistributedObject):
         print("DistributedMaprootAI view created")
         # FIXME: ENTER astrond DO
         # Register with LoginManager
-        self.login_manager = self.repo.create_distobj('LoginManagerAI', 1234, 0, 0)
-        self.login_manager.set_maproot(self.do_id)
+        self.login_manager = self.repo.create_distobjglobal_view('LoginManagerAI', LOGIN_MANAGER_DO_ID)
+        # self.login_manager.set_maproot(self.do_id)
 
 class DistributedMaprootUD(DistributedObject):
     pass

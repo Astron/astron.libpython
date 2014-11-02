@@ -47,7 +47,7 @@ class DistributedObject:
                             }
     
     def init(self):
-        print("DO created: %d (%s)" % (self.do_id, str(type(self))))
+        print("DO created without custom init(): %d (%s)" % (self.do_id, str(type(self))))
     
     def delete(self):
         print("DO deleted: %d" % (self.do_id, ))
@@ -71,7 +71,7 @@ class DistributedObject:
                 decoded_args.append(self.unpack_struct(dgi, arg.type().as_struct()))
             else:
                 decoded_args.append(self.type_unpacker[arg_type](dgi))
-        print(decoded_args)
+        # print("Updating field %s in %d with args %s" % (field.name(), self.do_id, str(decoded_args)))
         getattr(self, field.name())(*decoded_args)
 
     def send_update(self, field_name, *values):

@@ -4,14 +4,9 @@ typedef uint32 zoneId;
 typedef uint64 channel;
 
 // The Python Views for these distributed classes.
-from simple_example import GameRoot/AI
 from simple_example import LoginManager/AI/UD
 from simple_example import DistributedMaproot/AI/UD
 from simple_example import DistributedAvatar/AI/OV
-
-// A "dead" object (that processes nothing). AIs can put the roots
-// of the visibility subtrees that they control into its zones.
-dclass GameRoot {};
 
 // A simple DOG for username/password authentication and handoff to
 // the DistributedMaproot for avatar creation.
