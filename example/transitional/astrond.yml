@@ -9,7 +9,7 @@ general:
 
 # Actually just DOGs, not *the* UberDOG.
 uberdogs:
-  - id: 1234
+  - id: 20000
     class: LoginManager
     anonymous: true # May be contacted by status New clients to be Established
 
@@ -30,25 +30,26 @@ roles:
         add_interest: disabled
       # Channels defines the range of channels this clientagent can assign to Clients
       channels:
-          min: 100100
-          max: 299999
+          min: 100000
+          max: 999999
 
     - type: stateserver
-      control: 402000
+      control: 1000
 
     - type: database
-      control: 402001
+      control: 1001
       generate:
           min: 100000 # Required (no default)
+          max: 4294967295
       backend:
           type: sqlite3
           database: ./simple_example.db
 
     - type: dbss
-      database: 402001 # The channel of the associated database
+      database: 1001 # The channel of the associated database
       ranges:
         - min: 100000
-
+          max: 4294967295
 
     - type: eventlogger
       bind: 127.0.0.1:9090 # REMEMBER: UDP
