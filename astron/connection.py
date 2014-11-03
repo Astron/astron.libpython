@@ -61,7 +61,6 @@ class Connection:
 
     def read(self):
         try:
-            #print("Blocking: %s" % (str(self.socket.), ))
             data = self.socket.recv(self.remaining_length)
             # Has the connection been closed?
             if len(data) == 0:

@@ -4,9 +4,9 @@ typedef uint32 zoneId;
 typedef uint64 channel;
 
 // The Python Views for these distributed classes.
-from simple_example import LoginManager/AI/UD
-from simple_example import DistributedMaproot/AI/UD/AE
-from simple_example import DistributedAvatar/AI/OV
+from example_views import LoginManager/AI/UD
+from example_views import DistributedMaproot/AI/UD/AE
+from example_views import DistributedAvatar/AI/OV
 
 // A simple DOG for username/password authentication and handoff to
 // the DistributedMaproot for avatar creation.

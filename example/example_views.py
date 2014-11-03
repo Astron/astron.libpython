@@ -48,13 +48,13 @@ class LoginManagerUD(DistributedObject):
                 print("  Logging in successfully")
                 maproot_for_client = random.choice(list(self.maproot_distobjs))
                 self.repo.distobj_by_do_id(maproot_for_client).create_avatar(sender, sender)
-            else: # Bad credentials
+            else:
+                # Bad credentials
                 self.send_CLIENTAGENT_EJECT(sender, 122, "Bad credentials")
                 print("  Disconnecting for bad credentials")
         else:
-            # maproot hasn't contacted us yet.
+            # No maproot has appeared yet.
             # FIXME: ...or has left, and no replacement has arrived.
-            # FIXME: Implement a disconnection with reason "game not up yet".
             self.send_CLIENTAGENT_EJECT(sender, 999, "Server isn't ready")
             print("Dropping connection attempt due to missing maproot")
 

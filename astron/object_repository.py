@@ -266,6 +266,7 @@ class InternalRepository(ObjectRepository):
     def create_distobj_db_callback(self, do_id, parent_id, zone_ai, set_ai):
         print(" DB distobj %d created, now moving into (%d, %d), setting AI? %s" % (do_id, parent_id, zone_ai, str(set_ai)))
         # FIXME: DBSS_OBJECT_ACTIVATE_WITH_DEFAULTS and STATESERVER_OBJECT_SET_LOCATION
+        # FIXME: Do SET_AI if requested
 
     # Sending messages
     

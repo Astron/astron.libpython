@@ -5,7 +5,7 @@ daemon:
 general:
     eventlogger: 127.0.0.1:9090
     dc_files:
-        - simple_example.dc
+        - example.dc
 
 # Actually just DOGs, not *the* UberDOG.
 uberdogs:
@@ -43,7 +43,7 @@ roles:
           max: 4294967295
       backend:
           type: sqlite3
-          database: ./simple_example.db
+          database: ./example.db
 
     - type: dbss
       database: 1001 # The channel of the associated database
