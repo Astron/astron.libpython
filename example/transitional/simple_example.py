@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from astron.object_repository import DistributedObject
-from shared_constants import LOGIN_MANAGER_DO_ID, MAP_ROOT_ZONE
+from shared_constants import LOGIN_MANAGER_DO_ID, MAP_ROOT_ZONE, AVATARS_PARENT, AVATARS_ZONE
 import random
 
 from pprint import pprint
@@ -43,7 +43,8 @@ class LoginManagerUD(DistributedObject):
         print("Received login request for %d" % (sender, ))
         if len(self.maproot_distobjs) > 0:
             if username == "guest" and password == "guest":
-                # FIXME: Set client into ESTABLISHED state! 
+                # Login successful
+                self.repo.send_CLIENTAGENT_SET_STATE(sender, 2, sender = self.do_id)
                 print("  Logging in successfully")
                 maproot_for_client = random.choice(list(self.maproot_distobjs))
                 self.repo.distobj_by_do_id(maproot_for_client).create_avatar(sender, sender)
@@ -85,6 +86,7 @@ class DistributedMaprootAI(DistributedObject):
 
     def create_avatar(self, sender, client_id):
         print("%d called DistributedMaprootAI.create_avatar(%d)" % (sender, client_id))
+        self.repo.create_distobj_db('DistributedMaproot', AVATARS_PARENT, AVATARS_ZONE, set_ai = True)
 
 class DistributedMaprootAE(DistributedObject):
     def init(self):

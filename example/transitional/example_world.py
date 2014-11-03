@@ -6,7 +6,7 @@ from astron.object_repository import InternalRepository
 from shared_constants import MAP_ROOT_DO_ID, MAP_ROOT_PARENT, MAP_ROOT_ZONE
 
 if __name__ == '__main__':
-    repo = InternalRepository('SimpleExample v0.2', 'simple_example.dc', stateserver=402000, ai_channel=500001)
+    repo = InternalRepository('SimpleExample v0.2', 'simple_example.dc', stateserver=402000, dbss = 402001, ai_channel=500001)
 
     def connected():
         print('Connection established.')

@@ -205,9 +205,10 @@ class ObjectRepository(Connection):
         return callback
 
 class InternalRepository(ObjectRepository):
-    def __init__(self, version_string, dcfilename=default_dcfilename, stateserver=400000, ai_channel=500000):
+    def __init__(self, version_string, dcfilename=default_dcfilename, stateserver = 400000, dbss = 400001, ai_channel=500000):
         ObjectRepository.__init__(self, dcfilename=dcfilename)
         self.stateserver = stateserver
+        self.dbss = dbss
         self.ai_channel = ai_channel
         self.msg_type = MSG_TYPE_INTERNAL
         self.handlers.update({
@@ -266,6 +267,16 @@ class InternalRepository(ObjectRepository):
         if set_ai:
             self.send_STATESERVER_OBJECT_SET_AI(do_id)
 
+    def create_distobj_db(self, cls_name, parent_id, zone_ai, set_ai = True):
+        dclass_id = self.dclass_name_to_id[cls_name]
+        context = self.register_callback(servermsg.DBSERVER_CREATE_OBJECT,
+                                         self.create_distobj_db_callback,
+                                         args = [parent_id, zone_ai, set_ai])
+        self.send_DBSERVER_CREATE_OBJECT(dclass_id, context)
+
+    def create_distobj_db_callback(self, do_id, parent_id, zone_ai, set_ai):
+        print(" DB distobj %d created, now moving into (%d, %d), setting AI? %s" % (do_id, parent_id, zone_ai, str(set_ai)))
+
 
     # Sending messages
     
@@ -301,7 +312,7 @@ class InternalRepository(ObjectRepository):
         self.send_datagram(dg)
 
     def send_STATESERVER_CREATE_OBJECT_WITH_REQUIRED_OTHER(self):
-        dg = self.repo.create_message_stub(self.do_id, self.stateserver)
+        dg = self.create_message_stub(self.do_id, self.stateserver)
         dg.add_uint16(servermsg.STATESERVER_CREATE_OBJECT_WITH_REQUIRED_OTHER)
         dg.add_uint32(self.do_id)
         dg.add_uint32(self.parent)
@@ -309,6 +320,22 @@ class InternalRepository(ObjectRepository):
         dg.add_uint16(self.dclass_id)
         # FIXME: Add REQUIRED fields
         # FIXME: Add OTHER fields
+        self.send_datagram(dg)
+
+    def send_DBSERVER_CREATE_OBJECT(self, dclass_id, context):
+        dg = self.create_message_stub(self.ai_channel, self.dbss)
+        dg.add_uint16(servermsg.DBSERVER_CREATE_OBJECT)
+        dg.add_uint32(context)
+        dg.add_uint16(dclass_id)
+        # FIXME: `uint16 field_count`, `[uint16 field_id, <VALUE>]*field_count`
+        self.send_datagram(dg)
+    
+    def send_CLIENTAGENT_SET_STATE(self, clientagent, ca_state, sender = 0):
+        if sender == 0:
+            sender = self.ai_channel
+        dg = self.create_message_stub(sender, clientagent)
+        dg.add_uint16(servermsg.CLIENTAGENT_SET_STATE)
+        dg.add_uint16(ca_state)
         self.send_datagram(dg)
 
     # Receive messages
@@ -343,6 +370,12 @@ class InternalRepository(ObjectRepository):
     def handle_STATESERVER_OBJECT_ENTER_AI_WITH_REQUIRED(self, dgi, sender, recipients):
         print("handle_STATESERVER_OBJECT_ENTER_AI_WITH_REQUIRED", sender, recipients)
         self.create_view_from_datagram(dgi, cls_postfix = 'AI')
+
+    def handle_DBSERVER_CREATE_OBJECT_RESP(self, dgi, sender, recipients):
+        context = dgi.read_uint32()
+        do_id = dgi.read_uint32()
+        callback, args, kwargs = self.fire_callback(servermsg.DBSERVER_CREATE_OBJECT_RESP, context)
+        callback(do_id, *args, **kwargs)
 
 class ClientRepository(ObjectRepository):
     def __init__(self, version_string, dcfilename=default_dcfilename):
