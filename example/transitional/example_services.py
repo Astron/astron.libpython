@@ -3,10 +3,13 @@
 from time import sleep
 
 from astron.object_repository import InternalRepository
-from shared_constants import LOGIN_MANAGER_DO_ID, MAP_ROOT_PARENT, MAP_ROOT_ZONE
+from shared_constants import LOGIN_MANAGER_DO_ID, MAP_ROOT_PARENT, MAP_ROOT_ZONE, SERVICES, COMMON_STATESERVER, COMMON_DBSS
 
 if __name__ == '__main__':
-    repo = InternalRepository('SimpleExample v0.2', 'simple_example.dc', stateserver=402000, dbss = 402001, ai_channel=500000)
+    repo = InternalRepository('SimpleExample v0.2', 'simple_example.dc',
+                              stateserver = COMMON_STATESERVER,
+                              dbss = COMMON_DBSS,
+                              ai_channel = SERVICES)
 
     def connected():
         print('Connection established.')

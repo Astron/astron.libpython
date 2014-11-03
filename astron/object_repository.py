@@ -1,5 +1,3 @@
-import socket
-
 # TODO
 # * CLIENT_HEARTBEAT =  5
 
@@ -8,9 +6,8 @@ from bamboo.wire import Datagram, DatagramIterator
 from connection import Connection
 import client_messages as clientmsg
 import internal_messages as servermsg
-import socket
+from helpers import parent_zone_to_location, location_to_parent_zone
 import importlib
-from pprint import pprint
 
 DATAGRAM_SIZE = 2
 DATAGRAM_ENCODING = '<H'
@@ -28,16 +25,6 @@ default_host = "127.0.0.1"
 default_internal_port = 7199
 default_client_port = 7198
 default_dcfilename = "astron.dc"
-
-# FIXME: This needs to be moved into a shared name space.
-# FIXME: This needs to acknowledge the fact that there may be 128 bit
-#  locations (64 bit do_ids and zones).
-def parent_zone_to_location(parent, zone):
-    return parent * 2**32 | zone
-
-def location_to_parent_zone(location):
-    return (location / 2**32, location % 2**32)
-
 
 
 class ObjectRepository(Connection):
@@ -126,8 +113,10 @@ class ObjectRepository(Connection):
                     self.dclass_name_to_cls[(base_class, postfix)] = cls
 
     def distobj_by_do_id(self, do_id):
-        # FIXME: try/except this
-        return self.distributed_objects[do_id]
+        try:
+            return self.distributed_objects[do_id]
+        except KeyError:
+            print("KeyError: No view for do_id %d present." % (do_id, ))
 
     def poll_till_empty(self):
         """Process all received messages.
@@ -276,7 +265,7 @@ class InternalRepository(ObjectRepository):
 
     def create_distobj_db_callback(self, do_id, parent_id, zone_ai, set_ai):
         print(" DB distobj %d created, now moving into (%d, %d), setting AI? %s" % (do_id, parent_id, zone_ai, str(set_ai)))
-
+        # FIXME: DBSS_OBJECT_ACTIVATE_WITH_DEFAULTS and STATESERVER_OBJECT_SET_LOCATION
 
     # Sending messages
     

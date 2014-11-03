@@ -3,7 +3,7 @@
 from time import sleep
 
 from astron.object_repository import ClientRepository
-from shared_constants import *
+from shared_constants import LOGIN_MANAGER_DO_ID
 
 if __name__ == '__main__':
     repo = ClientRepository('SimpleExample v0.2', 'simple_example.dc')

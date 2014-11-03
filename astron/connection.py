@@ -41,8 +41,6 @@ class Connection:
         self.read()
         # Did we just finish reading the message length?
         if (not self.reading_message) and (self.remaining_length == 0):
-            # FIXME: Truncate partial data if you have more than needed, you dolt!
-            # This should be done in read() anyway, why is EVERYTHING read??
             length = struct.unpack('<H', self.partial_data)[0]
             self.partial_data = ''
             self.remaining_length = length
