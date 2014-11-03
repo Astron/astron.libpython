@@ -14,6 +14,8 @@ class DistributedObject:
                                         for dmethod_id in range(0, self.dclass.num_fields())])
         self.dmethod_id_to_name = dict([(dmethod_id, self.dclass.get_field(dmethod_id).name())
                                         for dmethod_id in range(0, self.dclass.num_fields())])
+        self.field_id_to_dmethod_id = dict([(self.dclass.get_field(dmethod_id).id(), dmethod_id)
+                                            for dmethod_id in range(0, self.dclass.num_fields())])
         self.do_id = do_id
         self.parent = parent_id
         self.zone = zone_id
@@ -59,7 +61,7 @@ class DistributedObject:
     def update_field(self, sender, field_id, dgi):
         """Handles incoming SET_FIELD updates."""
         decoded_args = []
-        field = self.dclass.get_field(field_id)
+        field = self.dclass.get_field(self.field_id_to_dmethod_id[field_id])
         num_args = field.type().as_method().num_parameters()
         for arg_id in range(0, num_args):
             arg = field.type().as_method().get_parameter(arg_id)
@@ -88,12 +90,12 @@ class DistributedObject:
                 dg = self.repo.create_message_stub(self.do_id, self.do_id)
                 dg.add_int16(servermsg.STATESERVER_OBJECT_SET_FIELD)
             dg.add_int32(self.do_id)
-            dg.add_int16(dmethod_id)
+            dg.add_int16(field.id())
             for arg_id in range(0, num_args):
                 arg = field.type().as_method().get_parameter(arg_id)
                 arg_type = arg.type().subtype()
                 if arg_type == module.kTypeStruct:
-                    self.pack_struct(dg, arg.type().as_struct(), *values[arg_id])
+                    self.pack_struct(dg, arg. type().as_struct(), *values[arg_id])
                 else:
                     self.type_packer[arg_type](dg, values[arg_id])
             self.repo.send_datagram(dg)
