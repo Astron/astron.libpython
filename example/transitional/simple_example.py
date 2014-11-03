@@ -49,12 +49,13 @@ class LoginManagerUD(DistributedObject):
                 maproot_for_client = random.choice(list(self.maproot_distobjs))
                 self.repo.distobj_by_do_id(maproot_for_client).create_avatar(sender, sender)
             else: # Bad credentials
-                # FIXME: Implement
+                self.send_CLIENTAGENT_EJECT(sender, 122, "Bad credentials")
                 print("  Disconnecting for bad credentials")
         else:
             # maproot hasn't contacted us yet.
             # FIXME: ...or has left, and no replacement has arrived.
             # FIXME: Implement a disconnection with reason "game not up yet".
+            self.send_CLIENTAGENT_EJECT(sender, 999, "Server isn't ready")
             print("Dropping connection attempt due to missing maproot")
 
     def handle_STATESERVER_OBJECT_CHANGING_LOCATION(self, sender, do_id, new_parent, new_zone, old_parent, old_zone):
@@ -79,14 +80,10 @@ class DistributedMaproot(DistributedObject):
 class DistributedMaprootAI(DistributedObject):
     def init(self):
         print("DistributedMaprootAI view created for %d in (%d, %d)" % (self.do_id, self.parent, self.zone))
-        # FIXME: ENTER astrond DO
-        # Register with LoginManager
-        # self.login_manager = self.repo.create_distobjglobal_view('LoginManagerAI', LOGIN_MANAGER_DO_ID)
-        # self.login_manager.set_maproot(self.do_id)
 
     def create_avatar(self, sender, client_id):
         print("%d called DistributedMaprootAI.create_avatar(%d)" % (sender, client_id))
-        self.repo.create_distobj_db('DistributedMaproot', AVATARS_PARENT, AVATARS_ZONE, set_ai = True)
+        self.repo.create_distobj_db('DistributedAvatar', AVATARS_PARENT, AVATARS_ZONE, set_ai = True)
 
 class DistributedMaprootAE(DistributedObject):
     def init(self):
@@ -108,10 +105,13 @@ class DistributedMaprootUD(DistributedObject):
 # -------------------------------------------------------------------
 
 class DistributedAvatar(DistributedObject):
-    pass
+    def init(self):
+        print("DistributedAvatar created for %d in (%d, %d)" % (self.do_id, self.parent, self.zone))
 
 class DistributedAvatarAI(DistributedObject):
-    pass
+    def init(self):
+        print("DistributedAvatarAI created for %d in (%d, %d)" % (self.do_id, self.parent, self.zone))
 
 class DistributedAvatarOV(DistributedObject):
-    pass
+    def init(self):
+        print("DistributedAvatarOV created for %d in (%d, %d)" % (self.do_id, self.parent, self.zone))

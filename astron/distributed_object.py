@@ -198,6 +198,18 @@ class DistributedObject:
         return dgi.read_string()
 
     # Sending
+
+    def send_CLIENTAGENT_EJECT(self, client_id, disconnect_code, reason):
+        dg = self.repo.create_message_stub(self.do_id, client_id)
+        dg.add_uint16(servermsg.CLIENTAGENT_EJECT)
+        dg.add_uint16(disconnect_code)
+        dg.add_string(reason)
+        self.repo.send_datagram(dg)
+    
+    def send_CLIENTAGENT_DROP(self, client_id):
+        dg = self.repo.create_message_stub(self.do_id, client_id)
+        dg.add_uint16(servermsg.CLIENTAGENT_DROP)
+        self.repo.send_datagram(dg)
     
     # Handle 
     def handle_STATESERVER_OBJECT_CHANGING_LOCATION(self, sender, do_id, new_parent, new_zone, old_parent, old_zone):
