@@ -29,6 +29,16 @@ default_internal_port = 7199
 default_client_port = 7198
 default_dcfilename = "astron.dc"
 
+# FIXME: This needs to be moved into a shared name space.
+# FIXME: This needs to acknowledge the fact that there may be 128 bit
+#  locations (64 bit do_ids and zones).
+def parent_zone_to_location(parent, zone):
+    return parent * 2**32 | zone
+
+def location_to_parent_zone(location):
+    return (location / 2**32, location % 2**32)
+
+
 
 class ObjectRepository(Connection):
     def __init__(self, dcfilename=default_dcfilename):
@@ -40,9 +50,6 @@ class ObjectRepository(Connection):
         dcfile.parse_dcfile(self.mod, dcfilename)
         # Create class definition dicts
         self.create_dclass_dicts()
-        # FIXME: Remove this after debugging
-        #pprint(self.dclass_id_to_cls)
-        #pprint(self.dclass_name_to_cls)
         self.distributed_objects = {}
         self.owner_views = {}
 
@@ -117,6 +124,10 @@ class ObjectRepository(Connection):
                     self.dclass_name_to_id[(base_class, postfix)] = dclass_id
                     self.dclass_name_to_cls[base_class + postfix] = cls
                     self.dclass_name_to_cls[(base_class, postfix)] = cls
+
+    def distobj_by_do_id(self, do_id):
+        # FIXME: try/except this
+        return self.distributed_objects[do_id]
 
     def poll_till_empty(self):
         """Process all received messages.
@@ -211,10 +222,10 @@ class InternalRepository(ObjectRepository):
         self.repo_interests = set()
         
     def add_ai_interest(self, distobj_id, zone_id):
-        self.repo_interests.add(distobj_id * 2**32 | zone_id)
+        self.repo_interests.add(parent_zone_to_location(distobj_id, zone_id))
         # FIXME: As do_ids and zones may be of different sizes,
         # this calculation has to take that into account.
-        self.send_CONTROL_ADD_CHANNEL(distobj_id * 2**32 | zone_id)
+        self.send_CONTROL_ADD_CHANNEL(parent_zone_to_location(distobj_id, zone_id))
         # FIXME: Request list of objects already existing in that
         # zone for ENTER.
         # FIXME: Messages for DOs that haven't entered yet may come
@@ -305,18 +316,32 @@ class InternalRepository(ObjectRepository):
     def handle_STATESERVER_OBJECT_SET_FIELD(self, dgi, sender, recipients):
         do_id = dgi.read_uint32()
         field_id = dgi.read_uint16()
-        self.distributed_objects[do_id].update_field(field_id, dgi)
+        self.distributed_objects[do_id].update_field(sender, field_id, dgi)
 
     def handle_STATESERVER_OBJECT_CHANGING_LOCATION(self, dgi, sender, recipients):
         print("handle_STATESERVER_OBJECT_CHANGING_LOCATION", sender, recipients)
+        do_id = dgi.read_uint32()
+        new_parent = dgi.read_uint32()
+        new_zone = dgi.read_uint32()
+        old_parent = dgi.read_uint32()
+        old_zone = dgi.read_uint32()
+        # print("  %d moves from (%d, %d) to (%d, %d)" % (do_id, old_parent, old_zone, new_parent, new_zone))
+        # FIXME: Now what to do with that information?
+        for recipient in recipients:
+            if recipient in self.distributed_objects.keys():
+                self.distributed_objects[recipient].handle_STATESERVER_OBJECT_CHANGING_LOCATION(sender, do_id, new_parent, new_zone, old_parent, old_zone)
         
     def handle_STATESERVER_OBJECT_GET_AI(self, dgi, sender, recipients):
         print("handle_STATESERVER_OBJECT_GET_AI", sender, recipients)
+        context = dgi.read_uint32()
+        print("  Context: %d" % (context, ))
+        # FIXME: Implement
         
     def handle_STATESERVER_OBJECT_ENTER_LOCATION_WITH_REQUIRED(self, dgi, sender, recipients):
-        print("handle_STATESERVER_OBJECT_ENTER_LOCATION_WITH_REQUIRED", sender, recipients)
+        self.create_view_from_datagram(dgi, cls_postfix = 'AE')
         
     def handle_STATESERVER_OBJECT_ENTER_AI_WITH_REQUIRED(self, dgi, sender, recipients):
+        print("handle_STATESERVER_OBJECT_ENTER_AI_WITH_REQUIRED", sender, recipients)
         self.create_view_from_datagram(dgi, cls_postfix = 'AI')
 
 class ClientRepository(ObjectRepository):
@@ -381,8 +406,6 @@ class ClientRepository(ObjectRepository):
                                  parent_id, zone_id,
                                  interest_id = 0,
                                  callback = False, callback_args = [], callback_kwargs = {}):
-        # FIXME: interest_id (uint16), parent_id (uint32), zone_id (uint32) should
-        # be asserted.
         if not (interest_id in self.interest_counters.keys()):
             self.interest_counters[interest_id] = -1
         # FIXME: This needs to be protected against uint32 roll-overs. I'll probably

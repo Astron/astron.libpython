@@ -52,14 +52,11 @@ class DistributedObject:
     def delete(self):
         print("DO deleted: %d" % (self.do_id, ))
 
-    def call_dist_method(self, name, *args):
-        pass
-
     def acquire_ai(self):
         # FIXME: This should have more intelligence, i.e. using GET_AI (CHANGE_AI?)
         self.repo.send_STATESERVER_OBJECT_SET_AI(self.do_id)
         
-    def update_field(self, field_id, dgi):
+    def update_field(self, sender, field_id, dgi):
         """Handles incoming SET_FIELD updates."""
         decoded_args = []
         field = self.dclass.get_field(field_id)
@@ -72,10 +69,12 @@ class DistributedObject:
             else:
                 decoded_args.append(self.type_unpacker[arg_type](dgi))
         # print("Updating field %s in %d with args %s" % (field.name(), self.do_id, str(decoded_args)))
-        getattr(self, field.name())(*decoded_args)
+        getattr(self, field.name())(sender, *decoded_args)
 
     def send_update(self, field_name, *values):
+        """Handles outgoing SET_FIELD updates."""
         dmethod_id = self.dmethod_name_to_id[field_name]
+        # print("  send_update to field %s, dmethod_id %d" % (field_name, dmethod_id))
         field = self.dclass.get_field(dmethod_id)
         num_args = field.type().as_method().num_parameters()
         if num_args != len(values):
@@ -198,4 +197,7 @@ class DistributedObject:
 
     # Sending
     
-
+    # Handle 
+    def handle_STATESERVER_OBJECT_CHANGING_LOCATION(self, sender, do_id, new_parent, new_zone, old_parent, old_zone):
+        """Override this to react to STATESERVER_OBJECT_CHANGING_LOCATION messages."""
+        pass
