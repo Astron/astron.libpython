@@ -171,12 +171,15 @@ class ObjectRepository(Connection):
         # FIXME: Read the field values from the dgi and apply them
         dist_obj.init()
 
-    def create_distobjglobal_view(self, cls_name, do_id):
+    def create_distobjglobal_view(self, cls_name, do_id, set_ai = False):
         cls = self.dclass_name_to_cls[cls_name]
         dclass_id = self.dclass_name_to_id[cls_name]
         dist_obj = cls(self, dclass_id, do_id, 0, 0)
         self.distributed_objects[do_id] = dist_obj
         dist_obj.init()
+        # FIXME: Now set interest in that do_id to get messages if you're the "UD"
+        if set_ai:
+            self.send_CONTROL_ADD_CHANNEL(do_id)
         return dist_obj
 
     # Callback management for *_RESP messages
@@ -209,21 +212,7 @@ class InternalRepository(ObjectRepository):
             # FIXME: Add handlers for incoming messages
             })
         self.global_views = {}
-        self.repo_interests = set()
         
-    def add_ai_interest(self, distobj_id, zone_id):
-        self.repo_interests.add(parent_zone_to_location(distobj_id, zone_id))
-        # FIXME: As do_ids and zones may be of different sizes,
-        # this calculation has to take that into account.
-        self.send_CONTROL_ADD_CHANNEL(parent_zone_to_location(distobj_id, zone_id))
-        # FIXME: Request list of objects already existing in that
-        # zone for ENTER.
-        # FIXME: Messages for DOs that haven't entered yet may come
-        # over the control channel. Either some kind of solution is
-        # needed, or AIR interests shall be implemented in Astron as
-        # actual messages.
-        # FIXME: There should also be remove_ai_interest(distobj, zone)
-
     def connect(self, connection_success, connection_failure,
                 host=default_host, port=default_client_port):
         # FIXME: Handle connection failures
@@ -256,7 +245,7 @@ class InternalRepository(ObjectRepository):
         if set_ai:
             self.send_STATESERVER_OBJECT_SET_AI(do_id)
 
-    def create_distobj_db(self, cls_name, parent_id, zone_ai, set_ai = True):
+    def create_distobj_db(self, cls_name, parent_id, zone_ai, set_ai = False):
         dclass_id = self.dclass_name_to_id[cls_name]
         context = self.register_callback(servermsg.DBSERVER_CREATE_OBJECT,
                                          self.create_distobj_db_callback,
@@ -342,11 +331,10 @@ class InternalRepository(ObjectRepository):
         new_zone = dgi.read_uint32()
         old_parent = dgi.read_uint32()
         old_zone = dgi.read_uint32()
-        # print("  %d moves from (%d, %d) to (%d, %d)" % (do_id, old_parent, old_zone, new_parent, new_zone))
-        # FIXME: Now what to do with that information?
         for recipient in recipients:
             if recipient in self.distributed_objects.keys():
                 self.distributed_objects[recipient].handle_STATESERVER_OBJECT_CHANGING_LOCATION(sender, do_id, new_parent, new_zone, old_parent, old_zone)
+        # FIXME: If the repo has "interest" in either location, that should be handled somehow.
         
     def handle_STATESERVER_OBJECT_GET_AI(self, dgi, sender, recipients):
         print("handle_STATESERVER_OBJECT_GET_AI", sender, recipients)
@@ -552,3 +540,26 @@ class ClientRepository(ObjectRepository):
     
     def handle_CLIENT_ENTER_OBJECT_REQUIRED_OTHER_OWNER(self, dgi):
         self.create_view_from_datagram(dgi, cls_postfix = 'OV')
+
+class InterestInternalRepository(InternalRepository):
+    def __init__(self, *args, **kwargs):
+        InternalRepository.__init__(self, *args, **kwargs)
+        self.repo_interests = set()
+    
+    def add_ai_interest(self, distobj_id, zone_id):
+        self.repo_interests.add(parent_zone_to_location(distobj_id, zone_id))
+        # FIXME: As do_ids and zones may be of different sizes,
+        # this calculation has to take that into account.
+        self.send_CONTROL_ADD_CHANNEL(parent_zone_to_location(distobj_id, zone_id))
+        # FIXME: Request list of objects already existing in that
+        # zone for ENTER.
+        # self.send_STATESERVER_OBJECT_GET_ZONE_OBJECTS(context, distobj_id, zone_id)
+        # FIXME: Messages for DOs that haven't entered yet may come
+        # over the control channel. Either some kind of solution is
+        # needed, or AIR interests shall be implemented in Astron as
+        # actual messages.
+        # FIXME: There should also be remove_ai_interest(distobj, zone)
+
+    def remove_ai_interest(self, context):
+        # FIXME: Implement
+        pass

@@ -2,10 +2,14 @@
 
 from time import sleep
 
-from astron.object_repository import InternalRepository
+from astron.object_repository import InterestInternalRepository as InternalRepository
 from shared_constants import MAP_ROOT_DO_ID, MAP_ROOT_PARENT, MAP_ROOT_ZONE, WORLD, COMMON_STATESERVER, COMMON_DBSS
 
 if __name__ == '__main__':
+    # FIXME: As soon as there are several AI servers, they have to
+    # "instinctively" choose different control channels. There will
+    # have to be a) a channel broker service, or b) have to use a
+    # to-be-designed CONTROL message to get assigned a channel.
     repo = InternalRepository('SimpleExample v0.2', 'example.dc',
                               stateserver = COMMON_STATESERVER,
                               dbss = COMMON_DBSS,
