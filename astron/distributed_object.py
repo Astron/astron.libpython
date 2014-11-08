@@ -52,9 +52,9 @@ class DistributedObject:
                             }
         self.required_fields, self.other_fields = separate_fields(self.dclass, ["required"])
         # FIXME: Remove after debug
-        print("Initing %s %d" % (self.dclass.name(), self.do_id))
-        print("  REQUIRED fields: %s" % (" ".join([str(idx) for idx in self.required_fields]), ))
-        print("  OTHER fields: %s" % (" ".join([str(idx) for idx in self.other_fields]), ))
+        #print("Initing %s %d" % (self.dclass.name(), self.do_id))
+        #print("  REQUIRED fields: %s" % (" ".join([str(idx) for idx in self.required_fields]), ))
+        #print("  OTHER fields: %s" % (" ".join([str(idx) for idx in self.other_fields]), ))
     
     # Creating and destroying the view.
     

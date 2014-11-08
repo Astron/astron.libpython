@@ -437,7 +437,6 @@ class ClientRepository(ObjectRepository):
     def handle_datagram(self, dg):
         dgi = DatagramIterator(dg)
         msgtype = dgi.read_uint16()
-        print("Handling %d" % (msgtype, ))
         if msgtype in self.handlers.keys():
             self.handlers[msgtype](dgi)
         else:
