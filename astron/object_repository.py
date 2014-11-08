@@ -197,7 +197,7 @@ class ObjectRepository(Connection):
         return callback
 
 class InternalRepository(ObjectRepository):
-    def __init__(self, version_string, dcfilename=default_dcfilename, stateserver = 400000, dbss = 400001, ai_channel=500000):
+    def __init__(self, dcfilename=default_dcfilename, stateserver = 400000, dbss = 400001, ai_channel=500000):
         ObjectRepository.__init__(self, dcfilename=dcfilename)
         self.stateserver = stateserver
         self.dbss = dbss

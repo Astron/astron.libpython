@@ -1,11 +1,16 @@
 from astron.helpers import parent_zone_to_location
 
+VERSION_STRING = 'SimpleExample v0.2'
+DC_FILE = 'example.dc'
+SERVER_FRAMERATE = 120.0
+
+# Channels
 # 1,000 - 9,999: Roles
-COMMON_STATESERVER = 1000
-COMMON_DBSS = 1001
+STATESERVER = 1000
+DBSS = 1001
 
 # 10,000 - 19,999: Internal Repositories
-SERVICES = 10000
+SERVICES_CHANNEL = 10000
 WORLD = 10001
 
 # 20,000 - 99,999: Fixed-ID Distributed Objects in StateServer

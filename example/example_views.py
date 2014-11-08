@@ -30,10 +30,6 @@ class LoginManagerAI(DistributedObject):
     def init(self):
         print("LoginManagerAI view created for %d in (%d, %d)" % (self.do_id, self.parent, self.zone))
 
-    #def set_maproot(self, maproot_doId):
-    #    print("LoginManagerAI view sends set_maproot")
-    #    self.send_update("set_maproot", maproot_doId)
-
 class LoginManagerUD(DistributedObject):
     def init(self):
         self.maproot_distobjs = set()
