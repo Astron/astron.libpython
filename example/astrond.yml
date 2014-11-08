@@ -39,7 +39,7 @@ roles:
     - type: database
       control: 1001
       generate:
-          min: 100000 # Required (no default)
+          min: 1000000 # Required (no default)
           max: 4294967295
       backend:
           type: sqlite3
@@ -48,7 +48,7 @@ roles:
     - type: dbss
       database: 1001 # The channel of the associated database
       ranges:
-        - min: 100000
+        - min: 1000000
           max: 4294967295
 
     - type: eventlogger

@@ -1,9 +1,12 @@
+# TODO: Split DistributedObject into ClientObject and InternalObject 
+
 from bamboo import module
 from bamboo.wire import Datagram
 from pprint import pprint
 import client_messages as clientmsg
 import internal_messages as servermsg
 from astron.object_repository import MSG_TYPE_CLIENT, MSG_TYPE_INTERNAL
+from astron.helpers import separate_fields
 
 class DistributedObject:
     def __init__(self, repository, dclass_id, do_id, parent_id, zone_id):
@@ -47,11 +50,21 @@ class DistributedObject:
                               module.kTypeString: self.unpack_string,
                               module.kTypeVarstring: self.unpack_string,
                             }
+        self.required_fields, self.other_fields = separate_fields(self.dclass, ["required"])
+        # FIXME: Remove after debug
+        print("Initing %s %d" % (self.dclass.name(), self.do_id))
+        print("  REQUIRED fields: %s" % (" ".join([str(idx) for idx in self.required_fields]), ))
+        print("  OTHER fields: %s" % (" ".join([str(idx) for idx in self.other_fields]), ))
+    
+    # Creating and destroying the view.
     
     def init(self):
+        """Overwrite this to execute code right after view creation."""
         print("DO created without custom init(): %d (%s)" % (self.do_id, str(type(self))))
     
     def delete(self):
+        """Overwrite this to execute code just before a views deletion."""
+        # FIXME: Redup in object_repository if the docstring is actually accurate. 
         print("DO deleted: %d" % (self.do_id, ))
 
     def acquire_ai(self):
@@ -99,6 +112,8 @@ class DistributedObject:
                 else:
                     self.type_packer[arg_type](dg, values[arg_id])
             self.repo.send_datagram(dg)
+
+    # Packing and unpacking field data.
 
     def pack_struct(self, dg, struct, *values):
         num_args = struct.num_fields()
@@ -210,7 +225,7 @@ class DistributedObject:
         dg = self.repo.create_message_stub(self.do_id, client_id)
         dg.add_uint16(servermsg.CLIENTAGENT_DROP)
         self.repo.send_datagram(dg)
-    
+
     # Handle 
     def handle_STATESERVER_OBJECT_CHANGING_LOCATION(self, sender, do_id, new_parent, new_zone, old_parent, old_zone):
         """Override this to react to STATESERVER_OBJECT_CHANGING_LOCATION messages."""

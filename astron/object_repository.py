@@ -6,7 +6,7 @@ from bamboo.wire import Datagram, DatagramIterator
 from connection import Connection
 import client_messages as clientmsg
 import internal_messages as servermsg
-from helpers import parent_zone_to_location, location_to_parent_zone
+from helpers import parent_zone_to_location, separate_fields
 import importlib
 
 DATAGRAM_SIZE = 2
@@ -204,11 +204,12 @@ class InternalRepository(ObjectRepository):
         self.ai_channel = ai_channel
         self.msg_type = MSG_TYPE_INTERNAL
         self.handlers.update({
-            servermsg.STATESERVER_OBJECT_SET_FIELD:                    self.handle_STATESERVER_OBJECT_SET_FIELD,
-            servermsg.STATESERVER_OBJECT_CHANGING_LOCATION:            self.handle_STATESERVER_OBJECT_CHANGING_LOCATION,
-            servermsg.STATESERVER_OBJECT_GET_AI:                       self.handle_STATESERVER_OBJECT_GET_AI,
+            servermsg.STATESERVER_OBJECT_SET_FIELD                   : self.handle_STATESERVER_OBJECT_SET_FIELD,
+            servermsg.STATESERVER_OBJECT_CHANGING_LOCATION           : self.handle_STATESERVER_OBJECT_CHANGING_LOCATION,
+            servermsg.STATESERVER_OBJECT_GET_AI                      : self.handle_STATESERVER_OBJECT_GET_AI,
             servermsg.STATESERVER_OBJECT_ENTER_LOCATION_WITH_REQUIRED: self.handle_STATESERVER_OBJECT_ENTER_LOCATION_WITH_REQUIRED,
-            servermsg.STATESERVER_OBJECT_ENTER_AI_WITH_REQUIRED:       self.handle_STATESERVER_OBJECT_ENTER_AI_WITH_REQUIRED,
+            servermsg.STATESERVER_OBJECT_ENTER_AI_WITH_REQUIRED      : self.handle_STATESERVER_OBJECT_ENTER_AI_WITH_REQUIRED,
+            servermsg.DBSERVER_CREATE_OBJECT_RESP                    : self.handle_DBSERVER_CREATE_OBJECT_RESP,
             # FIXME: Add handlers for incoming messages
             })
         self.global_views = {}
@@ -220,14 +221,6 @@ class InternalRepository(ObjectRepository):
         self.send_CONTROL_ADD_CHANNEL(self.ai_channel)
         connection_success()
         
-    def create_message_stub(self, sender, *recipients):
-        dg = Datagram()
-        dg.add_uint8(len(recipients))
-        for recipient in recipients:
-            dg.add_uint64(recipient)
-        dg.add_uint64(sender)
-        return dg
-
     def handle_datagram(self, dg):
         dgi = DatagramIterator(dg)
         num_recipients = dgi.read_uint8()
@@ -239,23 +232,44 @@ class InternalRepository(ObjectRepository):
         else:
             print("Received unhandled message type " + str(msgtype))
 
+    def create_message_stub(self, sender, *recipients):
+        dg = Datagram()
+        dg.add_uint8(len(recipients))
+        for recipient in recipients:
+            dg.add_uint64(recipient)
+        dg.add_uint64(sender)
+        return dg
+
+    # Creating views and/or distobjs
+
     def create_distobj(self, cls_name, do_id, parent_id, zone_id, set_ai = False):
         dclass_id = self.dclass_name_to_id[cls_name]
         self.send_STATESERVER_CREATE_OBJECT_WITH_REQUIRED(dclass_id, do_id, parent_id, zone_id)
         if set_ai:
             self.send_STATESERVER_OBJECT_SET_AI(do_id)
 
-    def create_distobj_db(self, cls_name, parent_id, zone_ai, set_ai = False):
+    def create_distobj_db(self, cls_name, parent_id, zone_ai, set_ai = False, creation_callback = False, additional_args = []):
         dclass_id = self.dclass_name_to_id[cls_name]
-        context = self.register_callback(servermsg.DBSERVER_CREATE_OBJECT,
-                                         self.create_distobj_db_callback,
-                                         args = [parent_id, zone_ai, set_ai])
+        if not creation_callback:
+            context = self.register_callback(servermsg.DBSERVER_CREATE_OBJECT,
+                                             self.create_distobj_db_callback,
+                                             args = [parent_id, zone_ai, set_ai])
+        else:
+            context = self.register_callback(servermsg.DBSERVER_CREATE_OBJECT,
+                                             self.create_distobj_db_callback,
+                                             args = [parent_id, zone_ai, set_ai, creation_callback, additional_args])
         self.send_DBSERVER_CREATE_OBJECT(dclass_id, context)
 
-    def create_distobj_db_callback(self, do_id, parent_id, zone_ai, set_ai):
-        print(" DB distobj %d created, now moving into (%d, %d), setting AI? %s" % (do_id, parent_id, zone_ai, str(set_ai)))
-        # FIXME: DBSS_OBJECT_ACTIVATE_WITH_DEFAULTS and STATESERVER_OBJECT_SET_LOCATION
+    def create_distobj_db_callback(self, do_id, parent_id, zone_id, set_ai, creation_callback = False, additional_args = []):
+        """For internal use only. Should activate a DB object after its creation."""
+        print(" DB distobj %d created, now moving into (%d, %d), setting AI? %s" % (do_id, parent_id, zone_id, str(set_ai)))
+        self.send_DBSS_OBJECT_ACTIVATE_WITH_DEFAULTS(do_id, parent_id, zone_id)
+        if set_ai:
+            self.send_STATESERVER_OBJECT_SET_AI(do_id)
+        # FIXME: STATESERVER_OBJECT_SET_LOCATION not required?
         # FIXME: Do SET_AI if requested
+        if creation_callback:
+            creation_callback(do_id, parent_id, zone_id, set_ai, *additional_args)
 
     # Sending messages
     
@@ -306,15 +320,45 @@ class InternalRepository(ObjectRepository):
         dg.add_uint16(servermsg.DBSERVER_CREATE_OBJECT)
         dg.add_uint32(context)
         dg.add_uint16(dclass_id)
-        # FIXME: `uint16 field_count`, `[uint16 field_id, <VALUE>]*field_count`
+        # FIXME: This is actually `uint16 field_count`, `[uint16 field_id, <VALUE>]*field_count`
+        # and should be accessible via create_distobj_db
+        dg.add_uint16(0)
         self.send_datagram(dg)
     
+    def send_DBSS_OBJECT_ACTIVATE_WITH_DEFAULTS(self, do_id, parent_id, zone_id):
+        dg = self.create_message_stub(self.ai_channel, do_id)
+        dg.add_uint16(servermsg.DBSS_OBJECT_ACTIVATE_WITH_DEFAULTS)
+        dg.add_uint32(do_id)
+        dg.add_uint32(parent_id)
+        dg.add_uint32(zone_id)
+        self.send_datagram(dg)
+
     def send_CLIENTAGENT_SET_STATE(self, clientagent, ca_state, sender = 0):
         if sender == 0:
             sender = self.ai_channel
         dg = self.create_message_stub(sender, clientagent)
         dg.add_uint16(servermsg.CLIENTAGENT_SET_STATE)
         dg.add_uint16(ca_state)
+        self.send_datagram(dg)
+    
+    def send_CLIENTAGENT_ADD_SESSION_OBJECT(self, do_id, client_channel):
+        dg = self.create_message_stub(self.ai_channel, client_channel)
+        dg.add_uint16(servermsg.CLIENTAGENT_ADD_SESSION_OBJECT)
+        dg.add_uint32(do_id)
+        self.send_datagram(dg)
+
+    def send_CLIENTAGENT_ADD_INTEREST(self, client_channel, interest_id, parent_id, zone_id):
+        dg = self.create_message_stub(self.ai_channel, client_channel)
+        dg.add_uint16(servermsg.CLIENTAGENT_ADD_INTEREST)
+        dg.add_uint16(interest_id)
+        dg.add_uint32(parent_id)
+        dg.add_uint32(zone_id)
+        self.send_datagram(dg)
+
+    def send_STATESERVER_OBJECT_SET_OWNER(self, do_id, owner):
+        dg = self.create_message_stub(self.ai_channel, do_id)
+        dg.add_uint16(servermsg.STATESERVER_OBJECT_SET_OWNER)
+        dg.add_uint64(owner)
         self.send_datagram(dg)
 
     # Receive messages
@@ -352,6 +396,7 @@ class InternalRepository(ObjectRepository):
     def handle_DBSERVER_CREATE_OBJECT_RESP(self, dgi, sender, recipients):
         context = dgi.read_uint32()
         do_id = dgi.read_uint32()
+        print("Received DBSERVER_CREATE_OBJECT_RESP for %d, sender %d, recipients %s" % (do_id, sender, str(recipients)))
         callback, args, kwargs = self.fire_callback(servermsg.DBSERVER_CREATE_OBJECT_RESP, context)
         callback(do_id, *args, **kwargs)
 
@@ -373,6 +418,7 @@ class ClientRepository(ObjectRepository):
             clientmsg.CLIENT_ENTER_OBJECT_REQUIRED_OTHER:       self.handle_CLIENT_ENTER_OBJECT_REQUIRED_OTHER,
             clientmsg.CLIENT_ENTER_OBJECT_REQUIRED_OWNER:       self.handle_CLIENT_ENTER_OBJECT_REQUIRED_OWNER,
             clientmsg.CLIENT_ENTER_OBJECT_REQUIRED_OTHER_OWNER: self.handle_CLIENT_ENTER_OBJECT_REQUIRED_OTHER_OWNER,
+            clientmsg.CLIENT_ADD_INTEREST                     : self.handle_CLIENT_ADD_INTEREST,
             })
 
     def connect(self, connection_success, connection_failure, connection_eject,
@@ -540,6 +586,13 @@ class ClientRepository(ObjectRepository):
     
     def handle_CLIENT_ENTER_OBJECT_REQUIRED_OTHER_OWNER(self, dgi):
         self.create_view_from_datagram(dgi, cls_postfix = 'OV')
+
+    def handle_CLIENT_ADD_INTEREST(self, dgi):
+        context = dgi.read_uint32()
+        interest_id = dgi.read_uint16()
+        parent_id = dgi.read_uint32()
+        zone_id = dgi.read_uint32()
+        print("Client received CLIENT_ADD_INTEREST, context %d, interest id %d for (%d, %d)" % (context, interest_id, parent_id, zone_id))
 
 class InterestInternalRepository(InternalRepository):
     def __init__(self, *args, **kwargs):

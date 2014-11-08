@@ -5,6 +5,7 @@
 # * Turn --login and --ai into something more generic
 # * Proper logging
 # * Monitoring output
+# * Framerate loop
 
 import argparse
 from time import sleep

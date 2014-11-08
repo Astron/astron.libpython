@@ -79,8 +79,16 @@ class DistributedMaprootAI(DistributedObject):
 
     def create_avatar(self, sender, client_id):
         print("%d called DistributedMaprootAI.create_avatar(%d)" % (sender, client_id))
-        self.repo.create_distobj_db('DistributedAvatar', AVATARS_PARENT, AVATARS_ZONE, set_ai = True)
+        self.repo.create_distobj_db('DistributedAvatar', AVATARS_PARENT, AVATARS_ZONE, set_ai = True,
+                                    creation_callback = self.avatar_created, additional_args = [client_id])
+        # FIXME: Choose better interest_id
 
+    def avatar_created(self, do_id, parent_id, zone_id, set_ai, client_id):
+        print("Avatar was created, now adding interest, setting owner and session object.")
+        self.repo.send_CLIENTAGENT_ADD_INTEREST(client_id, 666, AVATARS_PARENT, AVATARS_ZONE)
+        self.repo.send_STATESERVER_OBJECT_SET_OWNER(do_id, client_id)
+        self.repo.send_CLIENTAGENT_ADD_SESSION_OBJECT(do_id, client_id)
+        
 class DistributedMaprootAE(DistributedObject):
     def init(self):
         print("DistributedMaprootAE view created for %d in (%d, %d)" % (self.do_id, self.parent, self.zone))
