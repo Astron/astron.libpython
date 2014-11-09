@@ -41,7 +41,7 @@ class ObjectRepository(Connection):
         self.owner_views = {}
 
         self.handlers = {}
-        
+
         # FIXME: Maybe move this into ClientRepository, if Internals won't get Interests in the future.
         # FIXME: Actually, fold this into the general callback mechanism.
         self.interest_counters = {}
@@ -213,14 +213,14 @@ class InternalRepository(ObjectRepository):
             # FIXME: Add handlers for incoming messages
             })
         self.global_views = {}
-        
+
     def connect(self, connection_success, connection_failure,
                 host=default_host, port=default_client_port):
         # FIXME: Handle connection failures
         ObjectRepository.connect(self, host, port)
         self.send_CONTROL_ADD_CHANNEL(self.ai_channel)
         connection_success()
-        
+
     def handle_datagram(self, dg):
         dgi = DatagramIterator(dg)
         num_recipients = dgi.read_uint8()
@@ -272,7 +272,7 @@ class InternalRepository(ObjectRepository):
             creation_callback(do_id, parent_id, zone_id, set_ai, *additional_args)
 
     # Sending messages
-    
+
     def send_CONTROL_ADD_CHANNEL(self, channel):
         # CONTROL messages don't have sender fields
         dg = Datagram()
@@ -287,7 +287,7 @@ class InternalRepository(ObjectRepository):
         dg.add_uint16(servermsg.STATESERVER_OBJECT_SET_AI)
         dg.add_uint64(self.ai_channel)
         self.send_datagram(dg)
-        
+
     def send_STATESERVER_DELETE_AI_OBJECTS(self):
         dg = self.create_message_stub(self.ai_channel, self.stateserver)
         dg.add_uint16(servermsg.STATESERVER_DELETE_AI_OBJECTS)
@@ -324,7 +324,7 @@ class InternalRepository(ObjectRepository):
         # and should be accessible via create_distobj_db
         dg.add_uint16(0)
         self.send_datagram(dg)
-    
+
     def send_DBSS_OBJECT_ACTIVATE_WITH_DEFAULTS(self, do_id, parent_id, zone_id):
         dg = self.create_message_stub(self.ai_channel, do_id)
         dg.add_uint16(servermsg.DBSS_OBJECT_ACTIVATE_WITH_DEFAULTS)
@@ -340,7 +340,7 @@ class InternalRepository(ObjectRepository):
         dg.add_uint16(servermsg.CLIENTAGENT_SET_STATE)
         dg.add_uint16(ca_state)
         self.send_datagram(dg)
-    
+
     def send_CLIENTAGENT_ADD_SESSION_OBJECT(self, do_id, client_channel):
         dg = self.create_message_stub(self.ai_channel, client_channel)
         dg.add_uint16(servermsg.CLIENTAGENT_ADD_SESSION_OBJECT)
@@ -366,7 +366,7 @@ class InternalRepository(ObjectRepository):
     def handle_STATESERVER_OBJECT_SET_FIELD(self, dgi, sender, recipients):
         do_id = dgi.read_uint32()
         field_id = dgi.read_uint16()
-        self.distributed_objects[do_id].update_field(sender, field_id, dgi)
+        self.distributed_objects[do_id].recv_update_internal(sender, field_id, dgi)
 
     def handle_STATESERVER_OBJECT_CHANGING_LOCATION(self, dgi, sender, recipients):
         print("handle_STATESERVER_OBJECT_CHANGING_LOCATION", sender, recipients)
@@ -379,16 +379,16 @@ class InternalRepository(ObjectRepository):
             if recipient in self.distributed_objects.keys():
                 self.distributed_objects[recipient].handle_STATESERVER_OBJECT_CHANGING_LOCATION(sender, do_id, new_parent, new_zone, old_parent, old_zone)
         # FIXME: If the repo has "interest" in either location, that should be handled somehow.
-        
+
     def handle_STATESERVER_OBJECT_GET_AI(self, dgi, sender, recipients):
         print("handle_STATESERVER_OBJECT_GET_AI", sender, recipients)
         context = dgi.read_uint32()
         print("  Context: %d" % (context, ))
         # FIXME: Implement
-        
+
     def handle_STATESERVER_OBJECT_ENTER_LOCATION_WITH_REQUIRED(self, dgi, sender, recipients):
         self.create_view_from_datagram(dgi, cls_postfix = 'AE')
-        
+
     def handle_STATESERVER_OBJECT_ENTER_AI_WITH_REQUIRED(self, dgi, sender, recipients):
         print("handle_STATESERVER_OBJECT_ENTER_AI_WITH_REQUIRED", sender, recipients)
         self.create_view_from_datagram(dgi, cls_postfix = 'AI')
@@ -429,7 +429,7 @@ class ClientRepository(ObjectRepository):
 
         ObjectRepository.connect(self, host, port)
         self.send_CLIENT_HELLO()
-        
+
     def create_message_stub(self):
         dg = Datagram()
         return dg
@@ -507,7 +507,7 @@ class ClientRepository(ObjectRepository):
         if callback != False:
             self.interest_callback_map[(interest_id, context_id)] = (callback, callback_args, callback_kwargs)
         return context_id
-    
+
     def send_CLIENT_REMOVE_INTEREST(self, interest_id, context_id):
         # FIXME: Should something be done about callbacks here?
         dg = Datagram()
@@ -550,40 +550,40 @@ class ClientRepository(ObjectRepository):
         field_id = dgi.read_uint16()
         # FIXME: There's still the value in the dgi
         # FIXME: Implement
-    
+
     def handle_CLIENT_OBJECT_SET_FIELDS(self, dgi):
         do_id = dgi.read_uint32()
         field_count = dgi.read_uint16()
         # FIXME: There's still <field_count> values in the dgi
         # FIXME: Implement
-    
+
     def handle_CLIENT_OBJECT_LOCATION(self, dgi):
         do_id = dgi.read_uint32()
         parent_id = dgi.read_uint32()
         zone_id = dgi.read_uint32()
         # FIXME: Make DO set changed location
-    
+
     def handle_CLIENT_OBJECT_LEAVING(self, dgi):
         do_id = dgi.read_uint32()
         dist_obj = self.distributed_objects[do_id]
         dist_obj.delete()
         del self.distributed_objects[do_id]
-    
+
     def handle_CLIENT_OBJECT_LEAVING_OWNER(self, dgi):
         do_id = dgi.read_uint32()
         dist_obj = self.owner_views[do_id]
         dist_obj.delete()
         del self.distributed_objects[do_id]
-    
+
     def handle_CLIENT_ENTER_OBJECT_REQUIRED(self, dgi):
         self.create_view_from_datagram(dgi)
-    
+
     def handle_CLIENT_ENTER_OBJECT_REQUIRED_OTHER(self, dgi):
         self.create_view_from_datagram(dgi)
-    
+
     def handle_CLIENT_ENTER_OBJECT_REQUIRED_OWNER(self, dgi):
         self.create_view_from_datagram(dgi, cls_postfix = 'OV')
-    
+
     def handle_CLIENT_ENTER_OBJECT_REQUIRED_OTHER_OWNER(self, dgi):
         self.create_view_from_datagram(dgi, cls_postfix = 'OV')
 
@@ -598,7 +598,7 @@ class InterestInternalRepository(InternalRepository):
     def __init__(self, *args, **kwargs):
         InternalRepository.__init__(self, *args, **kwargs)
         self.repo_interests = set()
-    
+
     def add_ai_interest(self, distobj_id, zone_id):
         self.repo_interests.add(parent_zone_to_location(distobj_id, zone_id))
         # FIXME: As do_ids and zones may be of different sizes,
