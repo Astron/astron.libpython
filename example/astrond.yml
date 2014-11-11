@@ -10,7 +10,7 @@ general:
 # Actually just DOGs, not *the* UberDOG.
 uberdogs:
   - id: 20000
-    class: LoginManager
+    class: PointOfContact
     anonymous: true # May be contacted by status New clients to be Established
 
 messagedirector:

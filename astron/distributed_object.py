@@ -67,10 +67,6 @@ class DistributedObject:
         # FIXME: Redup in object_repository if the docstring is actually accurate. 
         print("DO deleted: %d" % (self.do_id, ))
 
-    def acquire_ai(self):
-        # FIXME: This should have more intelligence, i.e. using GET_AI (CHANGE_AI?)
-        self.repo.send_STATESERVER_OBJECT_SET_AI(self.do_id)
-        
     def update_field(self, sender, field_id, dgi):
         """Handles incoming SET_FIELD updates."""
         decoded_args = []
@@ -211,6 +207,34 @@ class DistributedObject:
 
     def unpack_string(self, dgi):
         return dgi.read_string()
+
+    # Server-side things
+
+    def acquire_ai(self):
+        # FIXME: This should have more intelligence, i.e. using GET_AI (CHANGE_AI?)
+        self.repo.send_STATESERVER_OBJECT_SET_AI(self.do_id)
+    
+    def add_ai_interest(self, distobj_id, zone_id):
+        self.repo.add_ai_interest(distobj_id, zone_id, by_distobj = self.do_id)
+    
+    def remove_ai_interest(self, distobj_id, zone_id):
+        self.repo.remove_ai_interest(distobj_id, zone_id, by_distobj = self.do_id)
+
+    def interest_distobj_enter(self, view, do_id, parent_id, zone_id):
+        """Overwrite this to be notified of new distributed objects
+        entering a location that this object is interested in."""
+        print("WARNING: Un-overwritten interest_distobj_enter called in %d" % (self.do_id, ))
+
+    def interest_distobj_ai_enter(self, view, do_id, parent_id, zone_id):
+        """Overwrite this to be notified of new AI distributed objects
+        entering a location that this object is interested in."""
+        print("WARNING: Un-overwritten interest_distobj_ai_enter called in %d" % (self.do_id, ))
+
+    def interest_changing_location_enter(self, sender, do_id, new_parent, new_zone, old_parent, old_zone):
+        print("WARNING: Un-overwritten interest_changing_location_enter called in %d" % (self.do_id, ))
+    
+    def interest_changing_location_leave(self, sender, do_id, new_parent, new_zone, old_parent, old_zone):
+        print("WARNING: Un-overwritten interest_changing_location_leave called in %d" % (self.do_id, ))
 
     # Sending
 

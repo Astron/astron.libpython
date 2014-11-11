@@ -4,26 +4,42 @@ typedef uint32 zoneId;
 typedef uint64 channel;
 
 // The Python Views for these distributed classes.
-from example_views import LoginManager/AI/UD
-from example_views import DistributedMaproot/AI/UD/AE
-from example_views import DistributedAvatar/AI/OV
+from example_views import PointOfContact/UD
+from example_views import GameRoot/AI/AE
+from example_views import LoginService/AI/AE
+from example_views import World/AI/AE
+from example_views import AIServer/AI/AE
+from example_views import Avatar/AI/AE/OV
 
 // A simple DOG for username/password authentication and handoff to
 // the DistributedMaproot for avatar creation.
-dclass LoginManager {
-  login(string username, string password) clsend;
+dclass PointOfContact {
+  login(string username, string password) clsend airecv;
+};
+
+// The root of the visibility tree, a container for services and
+// top-level stuff. 
+dclass GameRoot {};
+
+// The user authentication service.
+dclass LoginService {
+  login(channel client, string username, string password) airecv;
+}
+
+// FIXME: Comment
+dclass World {
+  create_avatar(channel client) airecv;
 };
 
 // The root object of the map, container for the DistributedAvatars.
-dclass DistributedMaproot {
-  create_avatar(channel client) airecv;
+dclass AIServer {
 };
 
 // The actual class for avatar control.
 // The idea is that a Client can set its intention for its heading
 // and speed, but only the controlling AI can set its actual
 // position and heading.
-dclass DistributedAvatar {
+dclass Avatar {
   setXYZH(int16 / 1000, int16 / 1000, int16 / 1000, int16 / 50) broadcast required;
   indicateIntent(int16 / 10, int16 / 10) ownsend airecv;
 };

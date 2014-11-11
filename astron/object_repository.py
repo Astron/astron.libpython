@@ -161,15 +161,20 @@ class ObjectRepository(Connection):
 
     def create_view_from_datagram(self, dgi, cls_postfix = ''):
         do_id = dgi.read_uint32()
-        parent_id = dgi.read_uint32()
-        zone_id = dgi.read_uint32()
-        dclass_id = dgi.read_uint16()
-        # Create the view object
-        cls = self.dclass_id_to_cls[(dclass_id, cls_postfix)]
-        dist_obj = cls(self, dclass_id, do_id, parent_id, zone_id)
-        self.distributed_objects[do_id] = dist_obj
-        # FIXME: Read the field values from the dgi and apply them
-        dist_obj.init()
+        # Only create a view if one doesn't already exist!
+        if not (do_id in self.distributed_objects.keys()):
+            parent_id = dgi.read_uint32()
+            zone_id = dgi.read_uint32()
+            dclass_id = dgi.read_uint16()
+            # Create the view object
+            cls = self.dclass_id_to_cls[(dclass_id, cls_postfix)]
+            dist_obj = cls(self, dclass_id, do_id, parent_id, zone_id)
+            self.distributed_objects[do_id] = dist_obj
+            # FIXME: Read the field values from the dgi and apply them
+            dist_obj.init()
+            return dist_obj, do_id, parent_id, zone_id
+        else:
+            return False
 
     def create_distobjglobal_view(self, cls_name, do_id, set_ai = False):
         cls = self.dclass_name_to_cls[cls_name]
@@ -361,6 +366,14 @@ class InternalRepository(ObjectRepository):
         dg.add_uint64(owner)
         self.send_datagram(dg)
 
+    def send_STATESERVER_OBJECT_GET_ZONE_OBJECTS(self, context, parent_id, zone_id):
+        dg = self.create_message_stub(self.ai_channel, parent_id)
+        dg.add_uint16(servermsg.STATESERVER_OBJECT_GET_ZONE_OBJECTS)
+        dg.add_uint32(context)
+        dg.add_uint32(parent_id)
+        dg.add_uint32(zone_id)
+        self.send_datagram(dg)
+
     # Receive messages
 
     def handle_STATESERVER_OBJECT_SET_FIELD(self, dgi, sender, recipients):
@@ -375,10 +388,7 @@ class InternalRepository(ObjectRepository):
         new_zone = dgi.read_uint32()
         old_parent = dgi.read_uint32()
         old_zone = dgi.read_uint32()
-        for recipient in recipients:
-            if recipient in self.distributed_objects.keys():
-                self.distributed_objects[recipient].handle_STATESERVER_OBJECT_CHANGING_LOCATION(sender, do_id, new_parent, new_zone, old_parent, old_zone)
-        # FIXME: If the repo has "interest" in either location, that should be handled somehow.
+        # FIXME: Do nothing else.
         
     def handle_STATESERVER_OBJECT_GET_AI(self, dgi, sender, recipients):
         print("handle_STATESERVER_OBJECT_GET_AI", sender, recipients)
@@ -390,7 +400,6 @@ class InternalRepository(ObjectRepository):
         self.create_view_from_datagram(dgi, cls_postfix = 'AE')
         
     def handle_STATESERVER_OBJECT_ENTER_AI_WITH_REQUIRED(self, dgi, sender, recipients):
-        print("handle_STATESERVER_OBJECT_ENTER_AI_WITH_REQUIRED", sender, recipients)
         self.create_view_from_datagram(dgi, cls_postfix = 'AI')
 
     def handle_DBSERVER_CREATE_OBJECT_RESP(self, dgi, sender, recipients):
@@ -399,6 +408,77 @@ class InternalRepository(ObjectRepository):
         print("Received DBSERVER_CREATE_OBJECT_RESP for %d, sender %d, recipients %s" % (do_id, sender, str(recipients)))
         callback, args, kwargs = self.fire_callback(servermsg.DBSERVER_CREATE_OBJECT_RESP, context)
         callback(do_id, *args, **kwargs)
+
+class InterestInternalRepository(InternalRepository):
+    def __init__(self, *args, **kwargs):
+        InternalRepository.__init__(self, *args, **kwargs)
+        self.repo_interests = set()
+        self.distobj_interests_do_id_to_locations = {}
+        self.distobj_interests_location_to_do_id = {}
+    
+    def add_ai_interest(self, distobj_id, zone_id, by_distobj = False):
+        if by_distobj:
+            print("Interest for %d in (%d, %d)" % (by_distobj, distobj_id, zone_id))
+            if not (by_distobj in self.distobj_interests_do_id_to_locations.keys()):
+                self.distobj_interests_do_id_to_locations[by_distobj] = [parent_zone_to_location(distobj_id, zone_id)]
+            else:
+                self.distobj_interests_do_id_to_locations[by_distobj].append(parent_zone_to_location(distobj_id, zone_id))
+            if not (by_distobj in self.distobj_interests_location_to_do_id.keys()):
+                self.distobj_interests_location_to_do_id[parent_zone_to_location(distobj_id, zone_id)] = [by_distobj]
+            else:
+                self.distobj_interests_location_to_do_id[parent_zone_to_location(distobj_id, zone_id)].append(by_distobj)
+        else:
+            print("Interest for repo in (%d, %d)" % (distobj_id, zone_id))
+            self.repo_interests.add(parent_zone_to_location(distobj_id, zone_id))
+        self.send_CONTROL_ADD_CHANNEL(parent_zone_to_location(distobj_id, zone_id))
+        # Request list of objects already existing in that zone for ENTER 
+        # FIXME: Can we do something with the context?
+        print("repo: STATESERVER_OBJECT_GET_ZONE_OBJECTS(%d, %d)" % (distobj_id, zone_id))
+        self.send_STATESERVER_OBJECT_GET_ZONE_OBJECTS(0, distobj_id, zone_id)
+        # FIXME: Messages for DOs that haven't entered yet may come
+        # over the control channel. Either some kind of solution is
+        # needed, or AIR interests shall be implemented in Astron as
+        # actual messages.
+
+    def remove_ai_interest(self, distobj_id, zone_id, by_distobj = False):
+        # FIXME: Implement
+        pass
+
+    # Overwrites
+    #            return dist_obj, do_id, parent_id, zone_id
+    def handle_STATESERVER_OBJECT_ENTER_LOCATION_WITH_REQUIRED(self, dgi, sender, recipients):
+        new_distobj = self.create_view_from_datagram(dgi, cls_postfix = 'AE')
+        if new_distobj:
+            view, do_id, parent_id, zone_id = new_distobj
+            if parent_zone_to_location(parent_id, zone_id) in self.distobj_interests_location_to_do_id.keys():
+                interested_distobjs = self.distobj_interests_location_to_do_id[parent_zone_to_location(parent_id, zone_id)]
+                for distobj in interested_distobjs:
+                    self.distributed_objects[distobj].interest_distobj_enter(view, do_id, parent_id, zone_id)
+        
+    def handle_STATESERVER_OBJECT_ENTER_AI_WITH_REQUIRED(self, dgi, sender, recipients):
+        new_distobj = self.create_view_from_datagram(dgi, cls_postfix = 'AI')
+        if new_distobj:
+            view, do_id, parent_id, zone_id = new_distobj 
+            if parent_zone_to_location(parent_id, zone_id) in self.distobj_interests_location_to_do_id.keys():
+                interested_distobjs = self.distobj_interests_location_to_do_id[parent_zone_to_location(parent_id, zone_id)]
+                for distobj in interested_distobjs:
+                    self.distributed_objects[distobj].interest_distobj_ai_enter(view, do_id, parent_id, zone_id)
+
+    def handle_STATESERVER_OBJECT_CHANGING_LOCATION(self, dgi, sender, recipients):
+        print("handle_STATESERVER_OBJECT_CHANGING_LOCATION", sender, recipients)
+        do_id = dgi.read_uint32()
+        new_parent = dgi.read_uint32()
+        new_zone = dgi.read_uint32()
+        old_parent = dgi.read_uint32()
+        old_zone = dgi.read_uint32()
+        if parent_zone_to_location(new_parent, new_zone) in self.distobj_interests_location_to_do_id.keys():
+            interested_distobjs = self.distobj_interests_location_to_do_id[parent_zone_to_location(new_parent, new_zone)]
+            for distobj in interested_distobjs:
+                self.distributed_objects[distobj].interest_changing_location_enter(sender, do_id, new_parent, new_zone, old_parent, old_zone)
+        if parent_zone_to_location(old_parent, old_zone) in self.distobj_interests_location_to_do_id.keys():
+            interested_distobjs = self.distobj_interests_location_to_do_id[parent_zone_to_location(old_parent, old_zone)]
+            for distobj in interested_distobjs:
+                self.distributed_objects[distobj].interest_changing_location_leave(sender, do_id, new_parent, new_zone, old_parent, old_zone)
 
 class ClientRepository(ObjectRepository):
     def __init__(self, version_string, dcfilename=default_dcfilename):
@@ -592,26 +672,3 @@ class ClientRepository(ObjectRepository):
         parent_id = dgi.read_uint32()
         zone_id = dgi.read_uint32()
         print("Client received CLIENT_ADD_INTEREST, context %d, interest id %d for (%d, %d)" % (context, interest_id, parent_id, zone_id))
-
-class InterestInternalRepository(InternalRepository):
-    def __init__(self, *args, **kwargs):
-        InternalRepository.__init__(self, *args, **kwargs)
-        self.repo_interests = set()
-    
-    def add_ai_interest(self, distobj_id, zone_id):
-        self.repo_interests.add(parent_zone_to_location(distobj_id, zone_id))
-        # FIXME: As do_ids and zones may be of different sizes,
-        # this calculation has to take that into account.
-        self.send_CONTROL_ADD_CHANNEL(parent_zone_to_location(distobj_id, zone_id))
-        # FIXME: Request list of objects already existing in that
-        # zone for ENTER.
-        # self.send_STATESERVER_OBJECT_GET_ZONE_OBJECTS(context, distobj_id, zone_id)
-        # FIXME: Messages for DOs that haven't entered yet may come
-        # over the control channel. Either some kind of solution is
-        # needed, or AIR interests shall be implemented in Astron as
-        # actual messages.
-        # FIXME: There should also be remove_ai_interest(distobj, zone)
-
-    def remove_ai_interest(self, context):
-        # FIXME: Implement
-        pass
