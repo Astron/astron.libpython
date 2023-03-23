@@ -1,6 +1,11 @@
+# Artifacts
 *.pyc
+build/
+dist/
+astron.egg-info/
+# Misc
+.idea/
 .project
 .pydevproject
-.gitignore
 *.log*
 *.db
