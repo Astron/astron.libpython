@@ -63,11 +63,11 @@ class DistributedObject:
         print("DO created without custom init(): %d (%s)" % (self.do_id, str(type(self))))
     
     def delete(self):
-        """Overwrite this to execute code just before a views deletion."""
+        """Overwrite this to execute code just before a views' deletion."""
         # FIXME: Redup in object_repository if the docstring is actually accurate. 
         print("DO deleted: %d" % (self.do_id, ))
 
-    def update_field(self, sender, field_id, dgi):
+    def update_field(self, field_id, dgi, sender=None):
         """Handles incoming SET_FIELD updates."""
         decoded_args = []
         field = self.dclass.get_field(self.field_id_to_dmethod_id[field_id])
@@ -80,7 +80,10 @@ class DistributedObject:
             else:
                 decoded_args.append(self.type_unpacker[arg_type](dgi))
         # print("Updating field %s in %d with args %s" % (field.name(), self.do_id, str(decoded_args)))
-        getattr(self, field.name())(sender, *decoded_args)
+        if sender:
+            getattr(self, field.name())(sender, *decoded_args)
+            return
+        getattr(self, field.name())(*decoded_args)  # update field on client (CA doesn't send sender)
 
     def send_update(self, field_name, *values):
         """Handles outgoing SET_FIELD updates."""

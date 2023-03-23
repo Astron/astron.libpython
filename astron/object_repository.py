@@ -210,6 +210,7 @@ class InternalRepository(ObjectRepository):
         self.msg_type = MSG_TYPE_INTERNAL
         self.handlers.update({
             servermsg.STATESERVER_OBJECT_SET_FIELD                   : self.handle_STATESERVER_OBJECT_SET_FIELD,
+            servermsg.STATESERVER_OBJECT_DELETE_RAM                  : self.handle_STATESERVER_OBJECT_DELETE_RAM,
             servermsg.STATESERVER_OBJECT_CHANGING_LOCATION           : self.handle_STATESERVER_OBJECT_CHANGING_LOCATION,
             servermsg.STATESERVER_OBJECT_GET_AI                      : self.handle_STATESERVER_OBJECT_GET_AI,
             servermsg.STATESERVER_OBJECT_ENTER_LOCATION_WITH_REQUIRED: self.handle_STATESERVER_OBJECT_ENTER_LOCATION_WITH_REQUIRED,
@@ -379,7 +380,12 @@ class InternalRepository(ObjectRepository):
     def handle_STATESERVER_OBJECT_SET_FIELD(self, dgi, sender, recipients):
         do_id = dgi.read_uint32()
         field_id = dgi.read_uint16()
-        self.distributed_objects[do_id].update_field(sender, field_id, dgi)
+        self.distributed_objects[do_id].update_field(field_id, dgi, sender=sender)
+
+    def handle_STATESERVER_OBJECT_DELETE_RAM(self, dgi, sender, recipients):
+        do_id = dgi.read_uint32()
+        dist_obj = self.distributed_objects[do_id]
+        dist_obj.delete()
 
     def handle_STATESERVER_OBJECT_CHANGING_LOCATION(self, dgi, sender, recipients):
         print("handle_STATESERVER_OBJECT_CHANGING_LOCATION", sender, recipients)
@@ -627,8 +633,8 @@ class ClientRepository(ObjectRepository):
     def handle_CLIENT_OBJECT_SET_FIELD(self, dgi):
         do_id = dgi.read_uint32()
         field_id = dgi.read_uint16()
-        # FIXME: There's still the value in the dgi
-        # FIXME: Implement
+        dist_obj = self.distributed_objects[do_id]
+        dist_obj.update_field(field_id, dgi)
     
     def handle_CLIENT_OBJECT_SET_FIELDS(self, dgi):
         do_id = dgi.read_uint32()
